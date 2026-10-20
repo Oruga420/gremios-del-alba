@@ -1,5 +1,11 @@
 # Third-party notices
 
+## Project license scope
+
+The root MIT license applies to original project code and documentation.
+Generated artwork in `assets/` has its separate CC BY 4.0 license in
+`assets/LICENSE.md`; vendored software retains the licenses listed below.
+
 ## ElevenLabs browser SDK
 
 `assets/vendor/elevenlabs-client.js` is the self-contained browser distribution
