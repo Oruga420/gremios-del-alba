@@ -1,0 +1,1491 @@
+{
+  "version": 1,
+  "units": {
+    "heavy_knight": {
+      "image": "assets/sprites/units/heavy_knight.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "archer": {
+      "image": "assets/sprites/units/archer.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 6,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "assassin": {
+      "image": "assets/sprites/units/assassin.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "cavalry": {
+      "image": "assets/sprites/units/cavalry.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "fishing_boat": {
+      "image": "assets/sprites/units/fishing_boat.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "healer": {
+      "image": "assets/sprites/units/healer.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "infantry": {
+      "image": "assets/sprites/units/infantry.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "mage": {
+      "image": "assets/sprites/units/mage.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "scout": {
+      "image": "assets/sprites/units/scout.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "siege_engine": {
+      "image": "assets/sprites/units/siege_engine.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "villager": {
+      "image": "assets/sprites/units/villager.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    },
+    "war_boat": {
+      "image": "assets/sprites/units/war_boat.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "wizard": {
+      "image": "assets/sprites/units/wizard.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "pivot": [
+        0.5,
+        0.88
+      ],
+      "directions": 8,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "fps": 8
+        },
+        "attack": {
+          "frames": [
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ],
+          "fps": 8,
+          "impactFrame": 4,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        },
+        "death": {
+          "frames": [
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            0.5,
+            0.72
+          ]
+        }
+      }
+    }
+  },
+  "buildings": {
+    "guildhall": {
+      "image": "assets/sprites/buildings/guildhall.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "academy": {
+      "image": "assets/sprites/buildings/academy.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "arcane_tower": {
+      "image": "assets/sprites/buildings/arcane_tower.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "archery": {
+      "image": "assets/sprites/buildings/archery.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "barracks": {
+      "image": "assets/sprites/buildings/barracks.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "dock": {
+      "image": "assets/sprites/buildings/dock.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "farm": {
+      "image": "assets/sprites/buildings/farm.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "forge": {
+      "image": "assets/sprites/buildings/forge.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "fortress": {
+      "image": "assets/sprites/buildings/fortress.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "granary": {
+      "image": "assets/sprites/buildings/granary.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "house": {
+      "image": "assets/sprites/buildings/house.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "lumber_camp": {
+      "image": "assets/sprites/buildings/lumber_camp.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "market": {
+      "image": "assets/sprites/buildings/market.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "mill": {
+      "image": "assets/sprites/buildings/mill.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "mining_camp": {
+      "image": "assets/sprites/buildings/mining_camp.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "sanctuary": {
+      "image": "assets/sprites/buildings/sanctuary.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "siege_workshop": {
+      "image": "assets/sprites/buildings/siege_workshop.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "stable": {
+      "image": "assets/sprites/buildings/stable.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "university": {
+      "image": "assets/sprites/buildings/university.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "watchtower": {
+      "image": "assets/sprites/buildings/watchtower.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "wonder": {
+      "image": "assets/sprites/buildings/wonder.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "pivot": [
+        0.5,
+        0.92
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    }
+  },
+  "resources": {
+    "food": {
+      "image": "assets/sprites/resources/food.png",
+      "frameWidth": 160,
+      "frameHeight": 192,
+      "pivot": [
+        0.5,
+        0.9
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "gold": {
+      "image": "assets/sprites/resources/gold.png",
+      "frameWidth": 160,
+      "frameHeight": 192,
+      "pivot": [
+        0.5,
+        0.9
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "stone": {
+      "image": "assets/sprites/resources/stone.png",
+      "frameWidth": 160,
+      "frameHeight": 192,
+      "pivot": [
+        0.5,
+        0.9
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    },
+    "wood": {
+      "image": "assets/sprites/resources/wood.png",
+      "frameWidth": 160,
+      "frameHeight": 192,
+      "pivot": [
+        0.5,
+        0.9
+      ],
+      "directions": 1,
+      "layout": "direction-rows",
+      "actions": {
+        "idle": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "walk": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        },
+        "attack": {
+          "frames": [
+            0
+          ],
+          "fps": 1
+        }
+      }
+    }
+  }
+}

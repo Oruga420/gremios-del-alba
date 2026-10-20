@@ -1,0 +1,29 @@
+{
+  "package": "@elevenlabs/client",
+  "version": "1.27.0",
+  "license": "MIT",
+  "repository": {
+    "url": "git+https://github.com/elevenlabs/packages.git",
+    "type": "git",
+    "directory": "packages/client"
+  },
+  "tarball": "https://registry.npmjs.org/@elevenlabs/client/-/client-1.27.0.tgz",
+  "tarballIntegrity": "sha512-Sy2gATXyPwkQZhJC+CGibHK0LaO6PdPyy6oEn1FgcaEV4W/Q/KkdUGVt4EX99WWpIArZF2PIRjpqWtRgwKCWtA==",
+  "upstreamFile": "package/dist/lib.iife.js",
+  "upstreamSha256": "f69a845935c3788ea46a73b09ead74640dfba5be135f225eac719df3a320c9cd",
+  "vendoredSha256": "c46506ebdfab427bf1c6f932d2854d2128a6a8a3cedc3be56c86aa7d0966b67a",
+  "licenseSha256": "0bfed2a2aa8d106bdb144f55416e193450fbc1e1b3257e3852bc64418069de5a",
+  "adaptation": "Removed sourceMappingURL only and appended an ESM export of official ElevenLabsClient.Conversation. All runtime provider code is the official self-contained browser distribution.",
+  "fetchedAt": "2026-10-13T12:37:01.701Z",
+  "upstreamRuntimeDependencies": {
+    "livekit-client": "^2.21.0",
+    "@elevenlabs/types": "0.24.0"
+  },
+  "worklets": {
+    "assets/vendor/elevenlabs-raw-audio-processor.js": {
+      "upstreamFile": "package/worklets/rawAudioProcessor.js",
+      "sha256": "6731b766e9e6176d56b9c6964975dd7dd045db88ce3b2b0b787f5fbeb9f1325d",
+      "adaptation": "Byte-identical official self-hosted worklet for strict same-origin CSP."
+    }
+  }
+}

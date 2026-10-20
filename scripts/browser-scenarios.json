@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "contractRevision": 2,
+  "required": [
+    {"id":"BROWSER01","name":"Visible menu, choices and clean new match","gameScenario":"GAME01"},
+    {"id":"BROWSER02","name":"Ten selectable, fully revealed and structurally different maps","gameScenario":"GAME12"},
+    {"id":"BROWSER03","name":"Named villagers, visible rename and duplicate rejection","gameScenario":"GAME02"},
+    {"id":"BROWSER04","name":"Actual resource gather, carry and deposit","gameScenario":"GAME03"},
+    {"id":"BROWSER05","name":"Legal and rejected construction, progress and repair","gameScenario":"GAME04"},
+    {"id":"BROWSER06","name":"Wall line, functional gate and route invalidation","gameScenario":"GAME05"},
+    {"id":"BROWSER07","name":"Training queue, reservation, cancellation and completion","gameScenario":"GAME06"},
+    {"id":"BROWSER08","name":"Era, technology, trade and rally through UI","gameScenario":"GAME07"},
+    {"id":"BROWSER09","name":"Combat, spells, healing, AI and victory/defeat","gameScenario":"GAME08/GAME09"},
+    {"id":"BROWSER10","name":"Drag selection, context orders, keyboard, pan, zoom and minimap","gameScenario":"GAME10"},
+    {"id":"BROWSER11","name":"Nontrivial save/load and continued simulation","gameScenario":"GAME11"},
+    {"id":"BROWSER12","name":"Actual process, source, loaded script and asset byte identity","gameScenario":null},
+    {"id":"BROWSER13","name":"Actual HTTP allowlist, traversal, Host, Origin and session checks","gameScenario":null},
+    {"id":"BROWSER14","name":"1440x900 and small viewport visible UI evidence","gameScenario":null},
+    {"id":"BROWSER15","name":"120 second, 2000 real inhabitant simulation and render workload","gameScenario":null},
+    {"id":"BROWSER16","name":"Zero uncaught page exceptions and relevant console errors","gameScenario":null}
+  ]
+}

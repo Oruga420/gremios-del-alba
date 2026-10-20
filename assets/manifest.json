@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "description": "Original generated fantasy artwork and rendered sprites for Gremios del Alba",
+  "license": "CC-BY-4.0",
+  "credits": "See THIRD_PARTY_NOTICES.md and assets/LICENSE.md",
+  "assets": {
+    "assets/hero.png": {
+      "sha256": "f736472e40c01a1b7c63f85283eea9f265bf963770ac89d52c223fa60893c902"
+    },
+    "assets/maps/bosque-de-jade.png": {
+      "sha256": "e61d504e240ab46b1dd6ed955a209f29a8864eff75443493d59692fd4b88192b"
+    },
+    "assets/maps/caldera-carmesi.png": {
+      "sha256": "32df253f851a1254cee87df341f26c576bed53eab0296f8b4d6ebf3dcc665f2b"
+    },
+    "assets/maps/costa-de-los-faros.png": {
+      "sha256": "282b38311417f020db88c978b980487547e36b7b1d6e9f10d95d7187386544fd"
+    },
+    "assets/maps/desierto-de-ambar.png": {
+      "sha256": "edc4b6a4c38815926d7763e25e1afdff6212a8e3ea9d533c363fe8179a5fcc11"
+    },
+    "assets/maps/islas-del-viento.png": {
+      "sha256": "55f0cbe31600d4ba5695907bfde54f4d6a8bb5886c2a4b0a928100fcc15673f1"
+    },
+    "assets/maps/jardin-celeste.png": {
+      "sha256": "7d3cf0d8b0bb4f3decae01e227530ba6af54907e78dcfa60259860ef020c80dd"
+    },
+    "assets/maps/llanuras-de-otono.png": {
+      "sha256": "70611b8c81fb22230c5b9598dc8724e7d080c15ad4234ac31a1e65c2b97f3cc2"
+    },
+    "assets/maps/pantano-de-luciernagas.png": {
+      "sha256": "4d902b20013d94a7d26a5e28b1a11d573bc443e776fbc5fcc4c8210e54f031b1"
+    },
+    "assets/maps/paso-nevado.png": {
+      "sha256": "79ca0555457acbab2385edf3bd63271213c5404906f86bc4672ab620112e6495"
+    },
+    "assets/maps/valle-del-alba.png": {
+      "sha256": "7cbef736bdc3c0a37cb0c61121c5e8c9b5a4fda4045c4479975ac8c2c22fd485"
+    },
+    "assets/portraits/alba.png": {
+      "sha256": "3721ad8c7a70f30d0a1b2c39d7aec8c905b090efdf1e4b75ce59df4154a1ad43"
+    },
+    "assets/portraits/bastion.png": {
+      "sha256": "2c1019c883663e12783251ecaa3bb7f88fe38cca879cf8b9b6804bedbf733b39"
+    },
+    "assets/portraits/eclipse.png": {
+      "sha256": "4b164ac63ad5377dc7f4b2938c529c47485dad645de4735f8489109a97deafb1"
+    },
+    "assets/portraits/espina.png": {
+      "sha256": "bb8ef9a87b6e75389aa877ea9f44bb7b1b215547e71dd3e1f511eeb1e396b84d"
+    },
+    "assets/sprites/buildings/academy.png": {
+      "sha256": "4b8a24573f0b2f370c3017d871b40b124bcdd043e826309d12bf3b481f87be79"
+    },
+    "assets/sprites/buildings/arcane_tower.png": {
+      "sha256": "482e960b25058bdab9630c3c7d63e7b8bceec4acb8c7a28b164a35578de21e2d"
+    },
+    "assets/sprites/buildings/archery.png": {
+      "sha256": "fdf500ddfa08cf294434cf4a6b2ecf30b8237fbe36130cefee41382e3dc0e9ee"
+    },
+    "assets/sprites/buildings/barracks.png": {
+      "sha256": "9febbf00c828d9fab6bab3d073c26265cd5d6f7dcc3d704effd8632af6f25e83"
+    },
+    "assets/sprites/buildings/dock.png": {
+      "sha256": "6afdb676bb832bde23f9782df27b48c021ef705ce003b2eee703bb4c618e719d"
+    },
+    "assets/sprites/buildings/farm.png": {
+      "sha256": "59cd60e14086b017d30ed76fdcec4e690c964c739111ecac0c8b20183f29860b"
+    },
+    "assets/sprites/buildings/forge.png": {
+      "sha256": "5376c0f5e8ba7450125c8c8b0a6f374516cc259bf659ae5db7a443678bf9edf8"
+    },
+    "assets/sprites/buildings/fortress.png": {
+      "sha256": "3bdfb479146fc8fdfb7e744cd78e6ddf32450131941f9d468dea8e87606c7e94"
+    },
+    "assets/sprites/buildings/granary.png": {
+      "sha256": "b609c98652c4078823aa7e76bb8b9a7680720d1abbc6760a107ede524aff5e83"
+    },
+    "assets/sprites/buildings/guildhall.png": {
+      "sha256": "de8bead4b8e0f432d9fb9296550ed0b6199aa1682eb2b29ad21e10ac33800a5d"
+    },
+    "assets/sprites/buildings/house.png": {
+      "sha256": "5438de4ce0cd2e3b254a9ddb4288a799809befd283e36e935044b255c1407939"
+    },
+    "assets/sprites/buildings/lumber_camp.png": {
+      "sha256": "ec49c2cdb480a068227058b5adea9fc48a8b46431d5828ecb849c98d60851e3e"
+    },
+    "assets/sprites/buildings/market.png": {
+      "sha256": "340efc5acb406d4d50f0c10b6ec313c89fad3b6ae1a1c49ad33af98768f9b524"
+    },
+    "assets/sprites/buildings/mill.png": {
+      "sha256": "bf42dfcd3e42bad3ece94d65b8418945868c2d421c0ea03e4530d8466555ee7e"
+    },
+    "assets/sprites/buildings/mining_camp.png": {
+      "sha256": "a71195319269e23a61cfa8f464717a8be354c90b0835917ea2aed5299c72c0ee"
+    },
+    "assets/sprites/buildings/sanctuary.png": {
+      "sha256": "c6f1dd7a78a4ae2acfbea4dbc6f041bd45dd0e5b164a7d3e146734b65742af74"
+    },
+    "assets/sprites/buildings/siege_workshop.png": {
+      "sha256": "3a12f46f59f764af82f9a089719e61266955e29b15a90b971d6a3c7054649aa6"
+    },
+    "assets/sprites/buildings/stable.png": {
+      "sha256": "576ee59bd98d84d57aa253cabe21021eae0e62ac622e534741a4ed813a102d2f"
+    },
+    "assets/sprites/buildings/university.png": {
+      "sha256": "42a8631e6514a4067fe1e5237215a8902030a485b279b7d19b607166e78d9ab6"
+    },
+    "assets/sprites/buildings/watchtower.png": {
+      "sha256": "9dce7b61907f96a9d2972570a8ee1019f5e354cb104c35d5d378b3f54306e1fb"
+    },
+    "assets/sprites/buildings/wonder.png": {
+      "sha256": "0e6cb5a25f0dd96ec4fd412f0276e93eb5e2bd1d3d2a1a24357c581c23969e27"
+    },
+    "assets/sprites/resources/food.png": {
+      "sha256": "d892655e04d10569d99b59d1b495b8a12ed9a9ce3d85f7f70fc2124b52570dc6"
+    },
+    "assets/sprites/resources/gold.png": {
+      "sha256": "be4862a371e847beb0d9b7b995b60af4ce27ec8ba8698720d602c6a4a7a042bd"
+    },
+    "assets/sprites/resources/stone.png": {
+      "sha256": "0aac0613b3fa03d20726e9e06b989f85b64cd42b8e772ac4f03b557bd73b9ad4"
+    },
+    "assets/sprites/resources/wood.png": {
+      "sha256": "c72f7ce27f1e6773a9af72ea34a474af5b849dd19de723fba6481bd2774abab8"
+    },
+    "assets/sprites/units/archer.png": {
+      "sha256": "30e15afbaa92c4df32322b3034bfd6236f9c64bad00a14b79c2b16263077d0c6"
+    },
+    "assets/sprites/units/assassin.png": {
+      "sha256": "405667132360bf4d2d4f6b2df8f950390628b4fe4d57c8db6f1f4d5c1587cd79"
+    },
+    "assets/sprites/units/cavalry.png": {
+      "sha256": "0808f13b410400125413255214912b9aa744f43956e31867dac4b589d6f8427d"
+    },
+    "assets/sprites/units/fishing_boat.png": {
+      "sha256": "fe22d1d5be882dd709510e302567bc5823a4400706e68dfa14b6cb7820e9a310"
+    },
+    "assets/sprites/units/healer.png": {
+      "sha256": "c9082faa19dfa8051d92955ce33dab8e970e79ada704d1ddd0edb8a0abf8d4d5"
+    },
+    "assets/sprites/units/heavy_knight.png": {
+      "sha256": "562ffa2af25cb5c4a22ee422976fe12db6d2cb42529b8f3582752aaef4839b04"
+    },
+    "assets/sprites/units/infantry.png": {
+      "sha256": "110de888961601dbceb6e786ef7ed7aa8cd7a4b8c0e85cc874cfdbaf46b5724e"
+    },
+    "assets/sprites/units/mage.png": {
+      "sha256": "1a71dba8ce0141db0e80224be07f86398769ab4674a5bc83a50f0f4269e2d4fb"
+    },
+    "assets/sprites/units/scout.png": {
+      "sha256": "d129772160f6de76273b34c43177e400dae64c27c26f78860f374aea0c052be5"
+    },
+    "assets/sprites/units/siege_engine.png": {
+      "sha256": "8b3a0f4b0bdad47e7584ed4ce39610e7db0dabb62527045193b73da318e16023"
+    },
+    "assets/sprites/units/villager.png": {
+      "sha256": "a8a056e38e1d45bc31045438b7d33b9971137cab71ddd91bbf4a3c9f688c5c2f"
+    },
+    "assets/sprites/units/war_boat.png": {
+      "sha256": "b60196fec2345d8cbc6bc88d69fb5be16cfe93b0ad27c2f76e6025f543cd3075"
+    },
+    "assets/sprites/units/wizard.png": {
+      "sha256": "c0dcf004c5df8a7e79bfbdd29f08901d579d4b6b83aebbd8044080c5455daae9"
+    }
+  }
+}

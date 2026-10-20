@@ -1,0 +1,92 @@
+/* Sota call dock: Image Saloon charcoal/lime, carried into the guild's green palette. */
+.guild-voice {
+  --call-panel: #1b2826;
+  --call-bar: #121c1a;
+  --call-border: #43554a;
+  --call-lime: #d2f76c;
+  --call-text: #edf4e7;
+  --call-muted: #adbcad;
+  width: 330px;
+  max-width: calc(100vw - 30px);
+  max-height: calc(100dvh - 335px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin-bottom: 9px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--call-border);
+  border-radius: 8px;
+  background: var(--call-panel);
+  color: var(--call-text);
+  box-shadow: 0 18px 60px #07110da6;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  scrollbar-width: thin;
+  scrollbar-color: var(--call-border) var(--call-panel);
+}
+.guild-voice [hidden], .guild-voice[hidden] { display: none !important; }
+.guild-voice > header { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; padding-bottom: 9px; border-bottom: 1px solid var(--call-border); }
+.guild-voice h3 { margin: 0; color: var(--call-lime); font-size: 17px; letter-spacing: .035em; font-weight: 600; }
+.guild-voice-caption { color: var(--call-muted); font-size: 8px; letter-spacing: .13em; }
+.guild-voice button { min-height: 34px; border: 1px solid var(--call-border); border-radius: 5px; background: var(--call-bar); color: var(--call-text); padding: 6px 11px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.guild-voice button:hover:not(:disabled) { border-color: var(--call-lime); }
+.guild-voice button:disabled { opacity: .5; cursor: not-allowed; }
+.guild-voice :is(button, input, select, summary):focus-visible { outline: 2px solid var(--call-lime); outline-offset: 3px; }
+.guild-voice [data-voice-action="close"] { margin-left: auto; width: 30px; min-height: 30px; padding: 0; border-color: transparent; font-size: 22px; line-height: 1; color: var(--call-muted); }
+.guild-voice-call { display: grid; gap: 10px; }
+.guild-voice-state { display: flex; align-items: center; gap: 13px; min-height: 45px; padding: 2px; }
+.guild-voice-state > div { min-width: 0; }
+.guild-voice-orb { --voice-level: 0; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f1ffc4, var(--call-lime) 45%, #5b7a2a 100%); box-shadow: 0 0 18px #d2f76c40; transform: scale(calc(1 + var(--voice-level) * .35)); transition: transform .1s linear; }
+.guild-voice-orb[data-mode="listening"] { animation: guild-call-breathe 2.6s ease-in-out infinite; }
+.guild-voice-orb[data-mode="connecting"] { opacity: .65; animation: guild-call-breathe 1.2s ease-in-out infinite; }
+.guild-voice-orb:is([data-mode="idle"], [data-mode="ended"]) { opacity: .4; filter: grayscale(.8); }
+@keyframes guild-call-breathe { 0%,100% { box-shadow: 0 0 10px #d2f76c30; } 50% { box-shadow: 0 0 24px #d2f76c80; } }
+.guild-voice-call-status { margin: 0; font-size: 14px; font-weight: 700; }
+.guild-voice-call-hint { margin: 3px 0 0; color: var(--call-muted); font-size: 10px; }
+.guild-voice-call-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.guild-voice [data-voice-action="agent"] { border-color: var(--call-lime); color: var(--call-lime); }
+.guild-voice [data-voice-action="end"], .guild-voice [data-voice-action="stop-header"], .guild-voice [data-voice-action="stop"] { border-color: #875749; color: #ffb8aa; }
+.guild-voice [data-voice-action="stop-header"] { justify-self: start; min-height: 30px; }
+.guild-voice [data-voice-action="mute"][aria-pressed="true"] { border-color: #ff927e; color: #ffb8aa; }
+#guild-agent-availability { margin: 0; color: var(--call-muted); font-size: 11px; }
+.guild-voice-notice { margin: 0; padding: 7px 9px; border-left: 2px solid #ff927e; background: #312521; color: #ffd4cb; font-size: 11px; overflow-wrap: anywhere; }
+.guild-voice-activity { margin: 0; padding: 5px 9px; border: 1px solid #52662e; border-radius: 13px; background: #23301f; color: var(--call-lime); font-size: 11px; justify-self: start; overflow-wrap: anywhere; max-width: 100%; }
+.guild-voice-transcript { list-style: none; margin: 12px 0 0; padding: 0; max-height: 116px; overflow: auto; scrollbar-width: thin; }
+.guild-voice-transcript:empty { display: none; }
+.guild-voice-transcript li { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-top: 1px solid #43554a66; font-size: 11px; color: var(--call-muted); line-height: 1.5; }
+.guild-voice-transcript small { flex: 0 0 30px; color: var(--call-lime); font-size: 8px; letter-spacing: .05em; }
+.guild-voice-transcript span { min-width: 0; overflow-wrap: anywhere; }
+.guild-voice-transcript li:is([data-source="typed"], [data-source="browser-speech"], [data-source="local-speech"], [data-source="elevenlabs-user"]) small { color: var(--call-muted); }
+.guild-voice-form { margin: 12px 0; }
+.guild-voice-form > div { display: flex; gap: 6px; }
+.guild-voice-form input { flex: 1; min-width: 0; min-height: 36px; padding: 8px 9px; border: 1px solid var(--call-border); border-radius: 5px; background: var(--call-bar); color: var(--call-text); font: inherit; font-size: 11px; }
+.guild-voice-form input::placeholder { color: var(--call-muted); opacity: 1; }
+.guild-voice-form button { width: 36px; flex: 0 0 36px; padding: 5px; color: var(--call-lime); font-size: 20px; }
+.guild-voice details { margin-top: 10px; padding-top: 10px; border-top: 1px solid #43554a80; color: var(--call-muted); font-size: 10px; }
+.guild-voice summary { cursor: pointer; }
+.guild-voice details p { margin: 9px 0 0; line-height: 1.6; }
+.guild-voice-modes { display: grid; gap: 7px; margin-top: 10px; }
+.guild-voice-modes select { min-width: 0; width: 100%; min-height: 32px; padding: 6px; border: 1px solid var(--call-border); border-radius: 4px; color: var(--call-text); background: var(--call-bar); font: inherit; font-size: 11px; }
+.guild-voice:has([data-voice-action="recognizer"] option[value="local"]:checked) [data-voice-action="language"] { display: none; }
+.guild-voice-status:is([data-state="denied"], [data-state="blocked"], [data-state="error"]) { color: #ffb8aa; }
+.guild-voice-native { font-size: 9px; opacity: .8; }
+.guild-voice-proposal { border: 1px solid var(--call-border); padding: 10px; margin: 12px 0; border-radius: 5px; }
+.guild-voice-proposal h4 { margin: 6px 0; font-size: 15px; }
+.guild-voice-proposal ul { max-height: 100px; overflow: auto; padding-left: 16px; }
+.guild-voice-proposal > div { display: flex; gap: 7px; }
+.voice-corner:has(.guild-voice:not([hidden])) { width: 330px; max-width: calc(100vw - 30px); }
+.voice-corner .voice-launcher { margin-left: auto; width: auto; border: 1px solid #43554a; background: #16221f; color: #edf4e7; border-radius: 22px; padding: 7px 11px 7px 8px; gap: 8px; }
+.voice-corner .voice-launcher:hover, .voice-corner .voice-launcher.voice-live { border-color: #d2f76c; }
+.voice-corner .voice-launcher > span:nth-child(2) { font-size: 11px; white-space: nowrap; }
+.voice-corner .voice-launcher .voice-orb { width: 26px; height: 26px; background: #d2f76c; color: #1b2826; border: 0; box-shadow: 0 0 12px #d2f76c30; }
+.voice-corner .voice-launcher .voice-orb svg { width: 14px; height: 14px; }
+.voice-corner .voice-launcher .keycap { color: #adbcad; border-color: #43554a; }
+@media (max-width: 560px) {
+  .guild-voice { width: 330px; max-height: calc(100dvh - 328px); }
+  .guild-voice-form input { font-size: 16px; }
+  .guild-voice-form input::placeholder { font-size: 11px; }
+  .guild-voice button { min-height: 38px; }
+  .guild-voice-transcript { max-height: 85px; }
+}
+@media (max-height: 650px) { .guild-voice { max-height: calc(100dvh - 310px); } .guild-voice-transcript { max-height: 70px; } }
+@media (prefers-reduced-motion: reduce) { .guild-voice-orb { animation: none !important; transition: none; transform: none; } }

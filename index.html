@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#263e32">
+  <title>Gremios del Alba — Crónicas de un nuevo mundo</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23263e32'/%3E%3Cpath d='M32 8 41 24 56 32 41 40 32 56 23 40 8 32 23 24Z' fill='%23d5bb7d'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <svg class="svg-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.1 6.9L22 12l-6.9 3.1L12 22l-3.1-6.9L2 12l6.9-3.1Z"/><path d="M12 7v10M7 12h10"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20 3C8 2 2 6 4 14s13 10 16-11Z"/><path d="m3 22 12-14M8 16l-1-6M12 12h5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v7c0 5-9 9-9 9S3 18 3 13V6Z"/><path d="M12 5v13M7 11h10"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 16A9 9 0 0 1 9 3 9 9 0 1 0 21 14Z"/><path d="m18 2 .6 2.4L21 5l-2.4.6L18 8l-.6-2.4L15 5l2.4-.6Z"/></symbol>
+    <symbol id="i-wood" viewBox="0 0 24 24"><path d="m12 2 7 9h-4l6 7H3l6-7H5Z"/><path d="M10 18v4h4v-4"/></symbol>
+    <symbol id="i-food" viewBox="0 0 24 24"><path d="M12 22V3M12 8C6 9 5 4 5 3c5 0 7 3 7 5Zm0 5C6 14 5 9 5 8c5 0 7 3 7 5Zm0 5C6 19 5 14 5 13c5 0 7 3 7 5Zm0-9c6 1 7-4 7-5-5 0-7 3-7 5Zm0 5c6 1 7-4 7-5-5 0-7 3-7 5Zm0 5c6 1 7-4 7-5-5 0-7 3-7 5Z"/></symbol>
+    <symbol id="i-gold" viewBox="0 0 24 24"><path d="m6 4 12 0 5 15H1Z"/><path d="m6 4 3 15M18 4l-3 15M4 11h16"/></symbol>
+    <symbol id="i-stone" viewBox="0 0 24 24"><path d="m2 17 3-9 8-5 8 7 1 10H5Z"/><path d="m5 8 7 5 9-3M12 13l-7 7M12 13l1-10"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M1 22v-4a8 8 0 0 1 16 0v4M17 3a4 4 0 0 1 0 8M18 14a7 7 0 0 1 5 7"/></symbol>
+    <symbol id="i-sword" viewBox="0 0 24 24"><path d="m21 2-3 9-11 9-3-3 9-11Z"/><path d="m3 13 8 8M3 21l3-3"/></symbol>
+    <symbol id="i-hammer" viewBox="0 0 24 24"><path d="m3 21 11-11M11 3l4-2 8 8-3 3-4-1-3 3-5-5Z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 5C8 2 4 2 1 3v17c4-2 8-1 11 1 3-2 7-3 11-1V3c-4-1-8 0-11 2Zm0 0v16"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M4 11v2a8 8 0 0 0 16 0v-2M12 21v-5M8 22h8"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M3 2h15l3 3v17H3Z"/><path d="M7 2v7h10V2M7 22v-9h10v9"/></symbol>
+    <symbol id="i-load" viewBox="0 0 24 24"><path d="M2 7V3h7l3 4h10v15H2ZM12 10v8m-4-4 4 4 4-4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1v7m0 8v7M1 12h7m8 0h7"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 23V2c5-4 10 4 16 0v12c-6 4-11-4-16 0"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 3v18M17 3v18"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 3 14 9-14 9Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M3 12h18m-7-7 7 7-7 7"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m1 11 11-9 11 9M4 9v13h16V9M9 22v-8h6v8"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="6" rx="7" ry="3"/><path d="M2 6v5c0 4 14 4 14 0V6M2 11v5c0 4 14 4 14 0v-5M18 10c6 0 6 5 0 5m-2 5c6 0 7-3 6-8"/></symbol>
+  </svg>
+
+  <main id="start-screen" class="start-screen">
+    <section class="story-panel" aria-label="Gremios del Alba">
+      <canvas id="menu-landscape" aria-hidden="true"></canvas>
+      <div class="hero-image" aria-hidden="true"></div>
+      <div class="story-shade"></div>
+      <a class="brand" href="/" aria-label="Gremios del Alba, inicio"><svg><use href="#i-star"/></svg><span>ESTUDIO DEL ALBA <small>CRÓNICAS INTERACTIVAS</small></span></a>
+      <div class="story-copy">
+        <span class="eyebrow light">UN MUNDO POR CONSTRUIR</span>
+        <h1>Gremios<br>del <em>Alba.</em></h1>
+        <p>Donde termina el viejo mundo,<br>comienza la historia de tu ciudad.</p>
+        <div class="story-rule"><span></span><svg><use href="#i-star"/></svg><span></span></div>
+        <div class="story-details"><span>ESTRATEGIA EN TIEMPO REAL</span><b>·</b><span>UN MUNDO DE FANTASÍA</span></div>
+      </div>
+      <div class="story-footer"><span>Diez tierras. Cuatro gremios. Tu legado.</span><span>EDICIÓN I <i>—</i> EL DESPERTAR</span></div>
+    </section>
+
+    <section class="chronicle-panel">
+      <header class="setup-header"><span class="eyebrow">TU PRÓXIMA CRÓNICA</span><button class="text-button" data-action="help"><svg><use href="#i-book"/></svg>Cómo jugar</button></header>
+      <div class="setup-title"><h2>Un nuevo comienzo</h2><p>Elige tu gremio y encuentra un lugar al que llamar hogar.</p></div>
+      <form id="match-form">
+        <fieldset><legend><span class="section-number">01</span> Elige tu gremio <span class="field-note">Cada origen deja su huella</span></legend><div id="guild-options" class="guild-options"></div></fieldset>
+        <fieldset class="map-field"><legend><span class="section-number">02</span> Descubre una tierra <span id="map-count" class="field-note">10 regiones exploradas</span></legend><div id="map-options" class="map-options"></div><div id="map-description" class="map-description"></div></fieldset>
+        <div class="settings-row">
+          <label class="setting-label">EL DESAFÍO<select name="difficulty" id="difficulty" data-action="difficulty"><option value="easy">Sereno · Fácil</option><option value="normal" selected>Equilibrado · Normal</option><option value="hard">Implacable · Difícil</option></select></label>
+          <fieldset class="mode-field"><legend>EL CAMINO</legend><div class="segmented"><label><input type="radio" name="mode" value="conquest" checked><span>Conquista</span></label><label><input type="radio" name="mode" value="peaceful"><span>Pacífico</span></label></div></fieldset>
+        </div>
+        <button class="primary-button start-button" type="submit" data-action="start-match"><svg><use href="#i-star"/></svg><span>Comenzar partida</span><svg><use href="#i-arrow"/></svg></button>
+        <div class="setup-bottom"><button type="button" class="text-button" data-action="load"><svg><use href="#i-load"/></svg>Cargar crónica</button><span>Un jugador <i>·</i> Partida local <i>·</i> Mapa revelado</span></div>
+      </form>
+    </section>
+  </main>
+
+  <main id="game-screen" class="game-screen" hidden>
+    <header class="game-topbar">
+      <button class="game-brand" data-action="new-match" title="Nueva partida"><svg><use href="#i-star"/></svg><span>Gremios <em>del Alba</em></span></button>
+      <div id="resources" class="resources" aria-label="Recursos de tu ciudad"></div>
+      <div id="population" class="population" title="Habitantes / capacidad. Máximo 1.000 por ciudad."><svg><use href="#i-people"/></svg><strong>0 / 0</strong><small>HABITANTES</small></div>
+      <div class="top-actions"><button class="icon-button" data-action="save" title="Guardar partida (Ctrl+S)" aria-label="Guardar partida"><svg><use href="#i-save"/></svg></button><button class="icon-button" data-action="load" title="Cargar partida" aria-label="Cargar partida"><svg><use href="#i-load"/></svg></button><button class="icon-button" data-action="help" title="Ayuda y controles" aria-label="Ayuda"><svg><use href="#i-book"/></svg></button></div>
+    </header>
+    <section id="world-stage" class="world-stage" aria-label="Mapa de juego">
+      <canvas id="world-canvas" tabindex="0" aria-label="Mundo isométrico. Arrastra para seleccionar; clic derecho para dar órdenes."></canvas>
+      <div class="world-caption"><div><span id="world-map-name">Valle del Alba</span><small id="world-mode">TIERRAS EXPLORADAS</small></div><span id="age-label">ERA I · FUNDACIÓN</span></div>
+      <div class="simulation-controls"><button class="round-button" data-action="pause" title="Pausar (Espacio)" aria-label="Pausar"><svg><use href="#i-pause"/></svg></button><button class="speed-button" data-action="speed" title="Cambiar velocidad">1×</button><span id="game-time">00:00</span></div>
+      <div id="pause-banner" class="pause-banner" hidden><span>EL TIEMPO DESCANSA</span><strong>Partida en pausa</strong><small>Pulsa Espacio para continuar</small></div>
+      <div id="placement-hint" class="placement-hint" hidden></div>
+      <div id="command-hint" class="command-hint">Selecciona a tus habitantes y haz clic derecho para dar una orden.</div>
+      <div id="world-tooltip" class="world-tooltip" hidden></div>
+      <div id="announcements" class="announcements" aria-live="polite" aria-atomic="true"></div>
+      <div class="view-controls"><button data-action="select-idle" title="Seleccionar aldeanos inactivos (.)"><svg><use href="#i-people"/></svg><span id="idle-count">0</span> inactivos</button><div><button data-action="zoom-out" title="Alejar" aria-label="Alejar">−</button><span id="zoom-level">100%</span><button data-action="zoom-in" title="Acercar" aria-label="Acercar">+</button></div></div>
+      <aside id="voice-corner" class="voice-corner"><div id="voice-mount"></div><button class="voice-launcher" data-action="voice" aria-expanded="false" aria-label="Llamar a Sota"><span class="voice-orb"><svg><use href="#i-mic"/></svg></span><span>Llamar a Sota</span><span class="keycap">V</span></button></aside>
+    </section>
+    <footer class="command-deck">
+      <section id="selection-panel" class="selection-panel" aria-label="Selección actual"></section>
+      <section class="actions-panel"><div class="deck-header"><nav id="build-tabs" class="build-tabs" aria-label="Categorías"><button class="active" data-action="tab" data-tab="economy">Ciudad</button><button data-action="tab" data-tab="military">Ejército</button><button data-action="tab" data-tab="defense">Defensas</button><button data-action="tab" data-tab="knowledge">Saber</button></nav><button class="roster-button" data-action="roster"><svg><use href="#i-people"/></svg>Habitantes</button></div><div id="action-catalog" class="action-catalog"></div><span class="catalog-scroll-cue" aria-hidden="true">›</span><div class="deck-footnote"><span id="selection-orders">Selecciona un habitante para comenzar.</span><span><kbd>B</kbd> Construir <i>·</i> <kbd>A</kbd> Atacar <i>·</i> <kbd>S</kbd> Detener</span></div></section>
+      <section class="minimap-panel"><div class="minimap-heading"><svg><use href="#i-eye"/></svg><span>EL MUNDO CONOCIDO</span><button class="text-button" data-action="center-selection" title="Centrar selección">Centrar</button></div><canvas id="minimap" width="238" height="150" aria-label="Minimapa, haz clic para navegar"></canvas><div class="minimap-footer"><span><i class="map-dot own"></i>Tu gremio</span><span><i class="map-dot enemy"></i>Rival</span><span id="map-size">80 × 80</span></div></section>
+    </footer>
+  </main>
+
+  <div id="modal-backdrop" class="modal-backdrop" hidden></div>
+  <section id="panel-drawer" class="panel-drawer" role="dialog" aria-modal="true" aria-labelledby="panel-title" hidden><header><div><span class="eyebrow" id="panel-eyebrow">CRÓNICAS DEL GREMIO</span><h2 id="panel-title"></h2></div><button class="icon-button" data-action="close-panel" aria-label="Cerrar"><svg><use href="#i-close"/></svg></button></header><div id="panel-content" class="panel-content"></div></section>
+  <dialog id="winner-dialog" class="winner-dialog"><span class="eyebrow">UNA CRÓNICA LLEGA A SU FIN</span><svg class="winner-emblem"><use href="#i-star"/></svg><h2 id="winner-title"></h2><p id="winner-description"></p><button class="primary-button" data-action="return-menu">Escribir una nueva historia <svg><use href="#i-arrow"/></svg></button><button class="text-button" data-action="continue-world">Contemplar el mundo</button></dialog>
+  <input id="load-file" type="file" accept=".json,application/json" hidden>
+  <div id="screen-reader-status" class="sr-only" role="status" aria-live="polite"></div>
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>

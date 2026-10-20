@@ -1,0 +1,18 @@
+{
+  "name": "gremios-del-alba",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An open-source browser fantasy RTS with Spanish voice commands and WebMCP tools",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=24.0.0" },
+  "repository": { "type": "git", "url": "https://github.com/Oruga420/gremios-del-alba.git" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "voice:definition": "node --env-file-if-exists=.env scripts/personal-voice.mjs --dry-run"
+  }
+}
