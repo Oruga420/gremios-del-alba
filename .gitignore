@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .local/
+.vercel/
 docs/reports/
 assets/reports/
 .env

@@ -3,6 +3,9 @@
 Un RTS de fantasía **open source**, jugable en el navegador, con aldeanos con
 nombre, gremios, construcción, recursos, murallas, combate y órdenes en español.
 
+El alcance actual son batallas y escaramuzas contra la IA, con economía,
+construcción y combate en mapas descubiertos. No incluye campañas.
+
 ![Gremios del Alba](assets/hero.png)
 
 ## Jugar localmente
@@ -44,6 +47,11 @@ un productor y haz clic derecho en un recurso para enviar allí a sus nuevos
 trabajadores. El panel de selección muestra su carga y si están recolectando,
 depositando o esperando un recurso o almacén accesible.
 
+Repetir una orden de recolección sobre el mismo recurso conserva la tarea,
+la ruta y la carga. Durante un avance ofensivo, las unidades retoman su destino
+si no pueden alcanzar a un enemigo detectado automáticamente. Un ataque
+explícito conserva el objetivo que elegiste.
+
 ## Voz y WebMCP
 
 Las órdenes escritas y el juego funcionan sin API keys. El reconocimiento de voz
@@ -78,10 +86,34 @@ npm run check
 npm run build
 ```
 
-`dist/` contiene el cliente estático generado. Un hosting estático permite el
-juego, pero las rutas de voz `/api/*` necesitan el servidor local. El inventario
-de herramientas está en `docs/voice/clickables.json`; el contrato del motor está
+`dist/` contiene el cliente estático generado. El servidor local incluye las
+rutas de voz y reconocimiento offline; en Vercel, `api/guild.mjs` sirve las
+rutas de Sota sin depender de una computadora encendida. El inventario de
+herramientas está en `docs/voice/clickables.json`; el contrato del motor está
 en `docs/engine-interface.md`.
+
+### Despliegue en Vercel
+
+Importa este repositorio con Node 24 y conserva `vercel.json`. El cliente se
+compila en `dist/`; las rutas `/api/*` se ejecutan como una función Node sin
+dependencias adicionales. Las partidas se guardan en tu navegador o se exportan
+a JSON. El reconocimiento offline de Vosk queda disponible en la versión local;
+en Vercel usa Voz del navegador o llama a Sota.
+
+Antes de configurar tu agente de pago, activa **Vercel Authentication → All
+Deployments** en el proyecto. El despliegue del propietario requiere iniciar
+sesión en Vercel; el repositorio continúa público. Define como variables de
+producción cifradas `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`,
+`GUILD_PUBLIC_ORIGIN` (el origen HTTPS exacto), `GUILD_SESSION_SECRET` (aleatoria,
+32 caracteres como mínimo) y `GUILD_DEPLOYMENT_PROTECTION=vercel-auth`.
+No incluyas sus valores en GitHub. El indicador declara la protección configurada;
+no sustituye el control de acceso de Vercel.
+
+La sesión y CSRF usan una cookie firmada, HttpOnly, Secure y SameSite. Los
+límites de emisión y de llamadas simultáneas son por instancia de la función;
+no equivalen a una cuota global ni a un límite de facturación. Mantén protegido
+el despliegue y configura los límites de uso en tu proveedor. La llamada del
+cliente termina a los cinco minutos o tras 90 segundos de inactividad.
 
 Hay dos benchmarks opcionales de 120 segundos cada uno. Ejecútalos por
 separado para no mezclar su carga:

@@ -105,7 +105,17 @@ export class World {
       return this._moveGroup(units,x,y,args.kind,false);
     }
     if(type==='stop'||type==='defend'){let target=null;if(type==='defend'&&args.targetId){target=this.getEntity(args.targetId);if(!target||target.team!==team||target.hp<=0)return fail('Ancla defensiva inválida');}if(type==='defend'&&('x'in args||'y'in args)&&!this._position(args.x,args.y))return fail('Destino defensivo inválido');for(const u of units){const x=target?.x??args.x??u.x,y=target?.y??args.y??u.y;this._order(u,{type:type==='stop'?'idle':'defend',x,y});if(type==='defend'&&(target||'x'in args))this._recordNavigation(u,x,y);}return done(type==='stop'?'Unidades detenidas':'Posición defendida');}
-    if(type==='gather'){let node=this.getEntity(args.targetId);if(node?.kind==='farm')node=this.state.nodes.find(n=>n.buildingId===node.id&&n.amount>0);if(!node&&typeof args.resource==='string')node=this._findResource(units[0],args.resource);if(!node||!this.state.nodes.includes(node)||units.some(u=>!this._resourceAllowed(u,node)))return fail('Recurso o recolectores inválidos');for(const u of units)this._order(u,{type:'gather',targetId:node.id,resource:node.kind,phase:u.carry.amount>0?'deliver':'gather'});return done('Recolección iniciada',{targetId:node.id});}
+    if(type==='gather'){
+      let node=this.getEntity(args.targetId);if(node?.kind==='farm')node=this.state.nodes.find(n=>n.buildingId===node.id&&n.amount>0);if(!node&&typeof args.resource==='string')node=this._findResource(units[0],args.resource);
+      if(!node||!this.state.nodes.includes(node)||units.some(u=>!this._resourceAllowed(u,node)))return fail('Recurso o recolectores inválidos');
+      for(const u of units){
+        const active=u.order.type==='gather';
+        if(active&&u.order.targetId===node.id&&(u.order.resource??node.kind)===node.kind)continue;
+        const continuing=active&&u.order.phase!=='deliver'&&u.carry.kind===node.kind;
+        this._order(u,{type:'gather',targetId:node.id,resource:node.kind,phase:u.carry.amount>0&&!continuing?'deliver':'gather'});
+      }
+      return done('Recolección iniciada',{targetId:node.id});
+    }
     if(type==='build'||type==='wall'){if(units.some(u=>u.kind!=='villager'))return fail('Solo los aldeanos construyen');const kind=args.kind,d=definition(BUILDINGS,kind);if(!d||d.age>t.age)return fail('Edificio no disponible en esta era');const plots=[];
       if(type==='wall'){if(!['wall','palisade'].includes(kind)||!this._position(args.x,args.y)||!this._position(args.endX,args.endY)||![args.x,args.y,args.endX,args.endY].every(Number.isInteger))return fail('Muralla inválida');const dx=args.endX-args.x,dy=args.endY-args.y,n=Math.max(Math.abs(dx),Math.abs(dy));if(n>79)return fail('Línea demasiado larga');for(let i=0;i<=n;i++)plots.push({kind,x:Math.round(args.x+(n?dx*i/n:0)),y:Math.round(args.y+(n?dy*i/n:0)),hp:1});
       }else plots.push({kind,x:args.x,y:args.y,hp:1});
@@ -325,7 +335,16 @@ export class World {
     if(!target||target.hp<=0||target.team===u.team){if(o.type==='attack'){this._order(u,{type:'idle'});target=null;}u.scanCooldown-=dt;if(u.scanCooldown<=0){u.scanCooldown=.35+(Number(u.id.slice(1))%5)*.02;u.autoTarget=this.spatial.nearest(u.x,u.y,Math.max(7,d.range),e=>e.team!==u.team&&e.team&&e.hp>0)?.id||null;}target=this.getEntity(u.autoTarget);}
     if(!target||target.hp<=0||target.team===u.team)return false;
     const range=d.range+((d.projectile&&this.state.teams[u.team].upgrades.fletching)?1:0);const radius=BUILDINGS[target.kind]?BUILDINGS[target.kind].size*.5:0;
-    if(distance(u,target)>range+radius){if(o.type==='attack'||(o.type==='move'&&o.attackMove))this._go(u,target.x,target.y,dt);return true;}
+    if(distance(u,target)>range+radius){
+      if(o.type==='attack'||(o.type==='move'&&o.attackMove)){
+        const result=this._go(u,target.x,target.y,dt);
+        if(result==='unreachable'&&o.type==='move'&&o.attackMove){
+          // A failed automatic chase yields to the march; deferred planning still waits.
+          u.autoTarget=null;u.scanCooldown=.75;return false;
+        }
+      }
+      return true;
+    }
     if(u.cooldown>0)return true;this._combatEvent('attack',u,target);u.cooldown=d.cooldown;this._participant('military',u.id);const g=GUILDS.find(g=>g.id===this.state.teams[u.team].guildId);let attack=(d.attack+this._upgrade(u.team,'attack'))*(d.counters?.[BUILDINGS[target.kind]?'building':target.kind]||1);if(['archer','assassin'].includes(u.kind))attack*=g.rangedBonus||1;if(d.role==='magic')attack*=(g.magicBonus||1)*(this.state.teams[u.team].upgrades.arcane_mastery?1.35:1);
     if(d.projectile){this.state.projectiles.push({id:this._id('p'),kind:u.kind==='mage'?'fireball':u.kind==='siege_engine'?'stone':'arrow',team:u.team,sourceId:u.id,targetId:target.id,x:u.x,y:u.y,targetX:target.x,targetY:target.y,damage:attack,splash:d.splash||0,ttl:Math.max(.12,distance(u,target)/14)});this.state.metrics.projectiles++;}else this._damage(target,attack,u);return true;
   }

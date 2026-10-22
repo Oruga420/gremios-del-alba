@@ -1,0 +1,16 @@
+.git/
+.local/
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+docs/reports/
+wiki/
+sources/
+.agents/
+.claude/
+.mempalace/
+projectstatus.html
+*.sqlite*
+*.log

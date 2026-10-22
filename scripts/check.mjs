@@ -26,7 +26,7 @@ async function walk(dir) {
 }
 
 const sourceFiles = await walk(resolve(root, 'src'));
-const supportFiles = await Promise.all(['scripts', 'tests'].map(dir => walk(resolve(root, dir))));
+const supportFiles = await Promise.all(['scripts', 'tests', 'server', 'api'].map(dir => walk(resolve(root, dir))));
 let serverExists = false;
 try { await readFile(resolve(root, 'server.mjs')); serverExists = true; } catch {}
 for (const file of [...sourceFiles, ...supportFiles.flat(), ...(serverExists ? [resolve(root, 'server.mjs')] : [])].sort()) {
