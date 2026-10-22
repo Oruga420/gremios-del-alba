@@ -20,7 +20,7 @@ function harness(options = {}) {
   return {game,registry,confirm,text,cameraCalls,get saved(){return saved;},advance(ms){now+=ms;return registry.confirm.tick();}};
 }
 test('VOICE01 exact inventory names, schemas, descriptions, commander gate and vendor schemas match', async()=>{
-  const inventory=JSON.parse(await readFile(new URL('../docs/voice/clickables.json',import.meta.url),'utf8')),tools=exportRegistry();assert.equal(tools.length,36);assert.deepEqual(tools,inventory.tools);assert.deepEqual([...new Set(inventory.rows.map(row=>row.voiceTool).filter(Boolean))].sort(),tools.map(tool=>tool.name).sort());
+  const inventory=JSON.parse(await readFile(new URL('../docs/voice/clickables.json',import.meta.url),'utf8')),tools=exportRegistry();assert.equal(new Set(tools.map(tool=>tool.name)).size,tools.length);assert.deepEqual(tools,inventory.tools);assert.deepEqual([...new Set(inventory.rows.map(row=>row.voiceTool).filter(Boolean))].sort(),tools.map(tool=>tool.name).sort());
   for(const tool of tools){assert.deepEqual(schemaDescriptions(tool.inputSchema),[]);assert.deepEqual(tool.allowedRoles,['commander']);assert.equal(tool.annotations.consequentialHint,tool.kind==='consequential');}
   const vendor=(await exportPersonalDefinition()).conversation_config.agent.prompt.tools;assert.deepEqual(vendor.map(tool=>tool.name),tools.map(tool=>tool.name));for(let i=0;i<tools.length;i++)assert.deepEqual(vendor[i].parameters,vendorSchema(tools[i].inputSchema));
   const h=harness();assert.equal(h.registry.runTool('read_city',{}, {role:'spectator'}).code,'ROLE_REJECTED');assert.equal(h.registry.runTool('propose_train',{kind:'archer',quantity:1,team:2}).code,'INVALID_INPUT');assert.equal(h.registry.runTool('eval',{code:'x'}).code,'UNKNOWN_TOOL');

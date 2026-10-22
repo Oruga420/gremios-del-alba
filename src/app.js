@@ -10,6 +10,7 @@ const number = value => Math.floor(value || 0).toLocaleString('es-ES');
 const costText = cost => Object.entries(cost || {}).filter(([,n])=>n).map(([key,value])=>`${number(value)} ${ {wood:'mad.',food:'alim.',gold:'oro',stone:'pied.'}[key] || key }`).join(' · ');
 const names = {wood:'Madera',food:'Alimento',gold:'Oro',stone:'Piedra',fish:'Pesca'};
 const orderNames = {idle:'Sin tarea',move:'En marcha',gather:'Recolectando',build:'Construyendo',repair:'Reparando',attack:'En combate',attack_move:'Avance ofensivo',defend:'Defendiendo',cast:'Canalizando',convert:'Convirtiendo',return:'Depositando',deposit:'Depositando'};
+const formationNames = {line:'Línea',box:'Caja',staggered:'Escalonada'};
 const queueName = item => item.type==='age'?`Era ${['','I','II','III','IV'][Number(item.kind)]}`:(UNITS[item.kind]?.name||TECHNOLOGIES[item.kind]?.name||TECHNOLOGIES[item.technologyId]?.name||'Orden');
 const queueProgress = item => Math.max(0,Math.min(1,item.progress??1-(item.remaining||0)/(item.duration||1)));
 const guildLabels = {alba:['Alba','Economía','star'],espina:['Espina','Bosque y sigilo','leaf'],bastion:['Bastión','Acero y honor','shield'],eclipse:['Eclipse','Saber y magia','moon']};
@@ -106,6 +107,28 @@ function selectedEntities(){return world?selectedIds.map(id=>world.getEntity(id)
 function ownUnits(){return selectedEntities().filter(entity=>entity.team===1&&UNITS[entity.kind]);}
 function selectedWorkers(){return ownUnits().filter(entity=>entity.kind==='villager').map(entity=>entity.id);}
 function selectedProducer(){return selectedEntities().find(entity=>entity.team===1&&BUILDINGS[entity.kind]);}
+function formationFor(units=ownUnits()){
+  const kind=units[0]?.formation;
+  return Object.hasOwn(formationNames,kind)&&units.every(unit=>unit.formation===kind)?kind:'box';
+}
+function chooseFormation(kind){
+  if(!Object.hasOwn(formationNames,kind))return {ok:false,message:'Formación desconocida.'};
+  return execute('formation',{unitIds:ownUnits().map(unit=>unit.id),kind});
+}
+function orderStatus(entity){
+  if(entity.order?.waiting==='dropoff')return 'Sin almacén accesible';
+  if(entity.order?.waiting==='resource')return 'Sin recurso accesible';
+  if(entity.order?.type==='gather'&&entity.order.phase==='deliver')return 'Depositando';
+  return orderNames[entity.order?.type]||'Preparado';
+}
+function cargoStatus(entities){
+  const cargo=entities.reduce((out,unit)=>{if(unit.carry?.amount>0)out[unit.carry.kind]=(out[unit.carry.kind]||0)+unit.carry.amount;return out;},{});
+  return Object.keys(cargo).length?`Carga: ${Object.entries(cargo).map(([kind,amount])=>`${number(amount)} ${names[kind]||kind}`).join(' · ')}`:'Sin carga';
+}
+function rallyStatus(entity){
+  const target=world.getEntity(entity.rally?.targetId);
+  return target?`Reunión: ${target.kind==='farm'?'Huerto':names[target.kind]||target.name||target.kind}`:'Reunión: terreno';
+}
 function enough(cost){const resources=world?.summary(1)?.resources||{};return Object.entries(cost||{}).every(([key,amount])=>(resources[key]||0)>=amount);}
 function focusEntity(id){const entity=world.getEntity(id);if(!entity)return;select([id]);renderer.centerOn(entity.x,entity.y);closePanel();}
 
@@ -157,12 +180,12 @@ function refreshHUD(){
   $('#zoom-level').textContent=`${Math.round(renderer.camera.zoom*100)}%`;
   selectedIds=selectedIds.filter(id=>world.getEntity(id)?.hp!==0&&world.getEntity(id));
   const entities=selectedEntities(),first=entities[0];
-  const signature=JSON.stringify([selectedIds,entities.map(e=>[e.kind,e.team,e.progress<1,e.order?.type,e.name,e.queue?.map(queueKey),e.open]),summary.age]);
+  const signature=JSON.stringify([selectedIds,entities.map(e=>[e.kind,e.team,e.progress<1,e.order?.type,e.order?.phase,e.order?.waiting,e.formation,e.name,e.queue?.map(queueKey),e.open,e.rally?.targetId]),summary.age]);
   if(signature!==selectionSignature){selectionSignature=signature;renderSelection(entities,summary);}
   updateSelectionProgress(entities);
   const catalogKey=JSON.stringify([selectedIds,currentTab,summary.age,summary.resources,world.state.teams?.[1]?.upgrades,first?.queue?.map(queueKey),first?.progress>=1,placement?.kind]);
   if(catalogKey!==catalogSignature){catalogSignature=catalogKey;renderCatalog(entities,summary);}
-  $('#selection-orders').textContent=placement?`Construyendo: ${BUILDINGS[placement.kind].name}`:first?(UNITS[first.kind]?`${entities.length>1?`${entities.length} unidades · `:''}${orderNames[first.order?.type]||'Preparado'} · Clic derecho para ordenar`:BUILDINGS[first.kind]?`Punto de reunión: clic derecho en el terreno`:`${names[first.kind]||first.kind} · Clic derecho con aldeanos para recolectar`):'Selecciona un habitante para comenzar.';
+  $('#selection-orders').textContent=placement?`Construyendo: ${BUILDINGS[placement.kind].name}`:first?(UNITS[first.kind]?`${entities.length>1?`${entities.length} unidades · `:''}${orderStatus(first)} · ${formationNames[formationFor()]} · Clic derecho para ordenar`:BUILDINGS[first.kind]?`${rallyStatus(first)} · Clic derecho en terreno o recurso`:`${names[first.kind]||first.kind} · Clic derecho con aldeanos para recolectar`):'Selecciona un habitante para comenzar.';
   if(currentPanel==='roster')updateRoster();
   if(world.state.winner!==null&&world.state.winner!==undefined&&!winnerShown)showWinner();
 }
@@ -183,11 +206,13 @@ function renderSelection(entities,summary){
   const entity=entities[0],definition=UNITS[entity.kind]||BUILDINGS[entity.kind],isUnit=!!UNITS[entity.kind],own=entity.team===1;
   if(!definition){panel.innerHTML=`<div class="selection-empty"><div class="selection-crest">${icon(entity.kind==='fish'?'food':entity.kind)}</div><h3>${names[entity.kind]||entity.kind}</h3><p>${number(entity.amount)} disponibles<br>Una riqueza de estas tierras.</p></div>`;return;}
   const title=entities.length>1?`${entities.length} habitantes`:entity.name||definition.name;
-  const order=isUnit?(orderNames[entity.order?.type]||'Preparado'):(entity.progress<1?'En construcción':own?'Edificio de tu gremio':'Edificio rival');
+  const order=isUnit?orderStatus(entity):(entity.progress<1?'En construcción':own?'Edificio de tu gremio':'Edificio rival');
   panel.innerHTML=`<div class="selected-identity"><div class="entity-portrait">${portrait(entity)}</div><div class="selected-name"><small>${own?'TU GREMIO':'GREMIO RIVAL'} · ${isUnit?'HABITANTE':'EDIFICIO'}</small><h3 title="${escapeHTML(title)}">${escapeHTML(title)}</h3><span>${escapeHTML(entities.length>1?'Selección múltiple':definition.name)}</span>${isUnit&&own&&entities.length===1?`<br><button class="rename-mini" data-action="rename" data-unit-id="${entity.id}">Cambiar nombre</button>`:''}</div></div>
     <div class="health-row"><div class="health-track"><i style="width:${Math.max(0,entity.hp/entity.maxHp*100)}%"></i></div><span>${number(entity.hp)} / ${number(entity.maxHp)}</span></div>
     <div class="entity-stats"><span>${isUnit?'Ataque':'Estado'} <b>${isUnit?definition.attack||0:entity.progress<1?`${Math.round(entity.progress*100)}%`:'Listo'}</b></span><span>${isUnit?'Armadura':'Era'} <b>${isUnit?definition.armor||0:definition.age}</b></span>${isUnit?`<span>Alcance <b>${definition.range||1}</b></span>`:''}</div>
     ${own&&isUnit?`<div class="unit-orders"><button data-action="attack-move" title="Avance ofensivo (A)">${icon('sword')}Atacar</button><button data-action="stop" title="Detener (S)">${icon('pause')}Detener</button><button data-action="defend" title="Defender (D)">${icon('shield')}Defender</button></div>`:''}
+    ${own&&isUnit?`<div class="formation-controls" role="group" aria-label="Formación de las unidades">${Object.entries(formationNames).map(([kind,label])=>`<button type="button" data-action="formation" data-formation="${kind}" aria-pressed="${formationFor()===kind}" title="Reagrupar en ${label.toLowerCase()}"><span class="formation-mark ${kind}" aria-hidden="true">${'<i></i>'.repeat(6)}</span>${label}</button>`).join('')}</div><div class="unit-activity"><span class="order-status">${escapeHTML(order)}</span><span class="cargo-status">${escapeHTML(cargoStatus(entities))}</span></div>`:''}
+    ${own&&!isUnit&&definition.trains?.length?`<div class="rally-status">${escapeHTML(rallyStatus(entity))}<small>Clic derecho en un recurso para enviar trabajadores nuevos.</small></div>`:''}
     ${own&&!isUnit&&entity.kind==='gate'?`<div class="unit-orders"><button data-action="gate-toggle" data-building-id="${entity.id}">${icon('flag')}${entity.open?'Cerrar puerta':'Abrir puerta'}</button></div>`:''}
     ${entity.progress<1?`<div class="progress-label">Construcción · ${Math.round(entity.progress*100)}%</div>`:''}
     ${entity.queue?.length?`<div class="training-queue">${entity.queue.map((item,index)=>renderQueueItem(item,index,entity.id)).join('')}</div>`:''}
@@ -204,6 +229,9 @@ function updateSelectionProgress(entities){
   const health=panel.querySelector('.health-track i'),healthText=panel.querySelector('.health-row>span');
   if(health)health.style.width=`${Math.max(0,entity.hp/entity.maxHp*100)}%`;
   if(healthText)healthText.textContent=`${number(entity.hp)} / ${number(entity.maxHp)}`;
+  const activity=panel.querySelector('.order-status'),cargo=panel.querySelector('.cargo-status');
+  if(activity)activity.textContent=orderStatus(entity);
+  if(cargo)cargo.textContent=cargoStatus(entities);
   if(entity.progress<1){
     const progress=Math.round(entity.progress*100),state=panel.querySelector('.entity-stats span:first-child b'),label=panel.querySelector('.progress-label');
     if(state)state.textContent=`${progress}%`;
@@ -252,8 +280,8 @@ function openPanel(name){
   $('#panel-title').textContent=titles[name]||name;
   const content=$('#panel-content');
   if(name==='help')content.innerHTML=`<p class="panel-lead">Construye un hogar. Cuida a sus habitantes. Deja un legado.</p><p>Los aldeanos recogen y transportan recursos hasta un almacén. Construye casas para ampliar la capacidad, recluta unidades y lleva a tu gremio a través de cuatro eras.</p><h3>Las manos del estratega</h3>${[
-    ['Clic izquierdo','Seleccionar una unidad, un edificio o un recurso.'],['Arrastrar','Seleccionar varios habitantes; Mayús añade a la selección.'],['Doble clic','Seleccionar unidades del mismo tipo en la vista.'],['Clic derecho','Mover, recolectar, reparar o atacar según el destino.'],['Rueda','Acercar o alejar el mundo alrededor del cursor.'],['Flechas / Alt + WASD','Desplazar la cámara. Arrastrar con botón central también funciona.'],['B / A / S / D','Construir, avance ofensivo, detener y defender.'],['. (punto)','Seleccionar un aldeano sin tarea.'],['Ctrl + 1…9','Guardar un grupo de control. 1…9 lo selecciona.'],['Espacio','Pausar o continuar la partida.'],['V','Abrir la voz del gremio.'],['Ctrl + S','Guardar la partida en este navegador y descargar el archivo.'],['Esc','Cancelar una orden, la voz o cerrar un panel.']
-  ].map(([key,text])=>`<div class="help-row"><kbd>${key}</kbd><span>${text}</span></div>`).join('')}<h3>De la semilla al reino</h3><p>Selecciona aldeanos y un edificio de la barra inferior. Haz clic en un terreno libre para construir; para murallas y empalizadas, arrastra una línea. Con aldeanos seleccionados, el clic derecho sobre un edificio dañado repara sus heridas.</p><p>Selecciona la Casa del Gremio para reclutar aldeanos y avanzar de era. Los edificios militares reclutan sus propias unidades; la forja y las academias investigan. En el mercado puedes convertir el excedente en nuevos recursos.</p><h3>La voz de tu gremio</h3><p>Prueba “selecciona mis aldeanos” o “recoge madera”. Las órdenes con consecuencias piden confirmar y permiten decir “detente”. El estado de micrófono, voz y WebMCP se muestra por separado en su panel.</p>`;
+    ['Clic izquierdo','Seleccionar una unidad, un edificio o un recurso.'],['Arrastrar','Seleccionar varios habitantes; Mayús añade a la selección.'],['Doble clic','Seleccionar unidades del mismo tipo en la vista.'],['Clic derecho','Mover, recolectar, reparar o atacar según el destino.'],['Formaciones','Línea, caja o escalonada: reagrupan la selección y se conservan al moverla.'],['Punto de reunión','Selecciona un productor y haz clic derecho en un recurso; los trabajadores nuevos comienzan a recolectar.'],['Rueda','Acercar o alejar el mundo alrededor del cursor.'],['Flechas / Alt + WASD','Desplazar la cámara. Arrastrar con botón central también funciona.'],['B / A / S / D','Construir, avance ofensivo, detener y defender.'],['. (punto)','Seleccionar un aldeano sin tarea.'],['Ctrl + 1…9','Guardar un grupo de control. 1…9 lo selecciona.'],['Espacio','Pausar o continuar la partida.'],['V','Abrir la voz del gremio.'],['Ctrl + S','Guardar la partida en este navegador y descargar el archivo.'],['Esc','Cancelar una orden, la voz o cerrar un panel.']
+  ].map(([key,text])=>`<div class="help-row"><kbd>${key}</kbd><span>${text}</span></div>`).join('')}<h3>De la semilla al reino</h3><p>Selecciona aldeanos y un edificio de la barra inferior. Haz clic en un terreno libre para construir; para murallas y empalizadas, arrastra una línea. Con aldeanos seleccionados, el clic derecho sobre un edificio dañado repara sus heridas.</p><p>Selecciona la Casa del Gremio para reclutar aldeanos y avanzar de era. Los edificios militares reclutan sus propias unidades; la forja y las academias investigan. En el mercado puedes convertir el excedente en nuevos recursos.</p><h3>La voz de tu gremio</h3><p>Prueba “selecciona mis aldeanos”, “recoge madera”, “forma en línea” o “mueve los arqueros en caja a mi base”. Las órdenes se ejecutan al momento; “Alto” detiene las unidades. No hace falta confirmar ni dar coordenadas. El estado de micrófono, voz y WebMCP se muestra por separado en su panel.</p>`;
   if(name==='roster'){
     content.innerHTML=`<p>Una ciudad está hecha de historias. Encuentra a un habitante, vuelve a él o dale un nombre propio.</p><input class="roster-search" id="roster-search" placeholder="Buscar por nombre o profesión…" aria-label="Buscar habitantes" data-action="roster-search"><div id="roster-summary" class="roster-summary"></div><div id="roster-list"></div>`;
     $('#roster-search').addEventListener('input',()=>{panelSignature='';updateRoster();});updateRoster();
@@ -282,11 +310,11 @@ function closePanel(){currentPanel=null;$('#panel-drawer').hidden=true;$('#modal
 function updateRoster(){
   if(!world||!$('#roster-list'))return;
   const query=($('#roster-search').value||'').toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'');
-  const units=world.state.units.filter(u=>u.team===1&&u.hp>0),signature=JSON.stringify([query,units.map(u=>[u.id,u.name,Math.round(u.hp),u.order?.type])]);
+  const units=world.state.units.filter(u=>u.team===1&&u.hp>0),signature=JSON.stringify([query,units.map(u=>[u.id,u.name,Math.round(u.hp),u.order?.type,u.order?.phase,u.order?.waiting])]);
   if(signature===panelSignature)return;panelSignature=signature;
   const summary=world.summary(1);$('#roster-summary').innerHTML=`<span><b>${summary.population}</b> habitantes</span><span><b>${summary.villagers}</b> aldeanos</span><span><b>${summary.military}</b> militares</span>`;
   const filtered=units.filter(u=>`${u.name} ${UNITS[u.kind]?.name}`.toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'').includes(query));
-  $('#roster-list').innerHTML=filtered.slice(0,200).map(u=>`<div class="roster-row"><i class="unit-dot"></i><button data-action="select-entity" data-unit-id="${u.id}">${escapeHTML(u.name)}<small>${escapeHTML(UNITS[u.kind]?.name)} · ${orderNames[u.order?.type]||'Preparado'}</small></button><span class="roster-hp">${Math.round(u.hp)} PV</span><button class="text-button" data-action="rename" data-unit-id="${u.id}">Renombrar</button></div>`).join('')+(filtered.length>200?'<p>Refina la búsqueda para encontrar otros habitantes.</p>':'');
+  $('#roster-list').innerHTML=filtered.slice(0,200).map(u=>`<div class="roster-row"><i class="unit-dot"></i><button data-action="select-entity" data-unit-id="${u.id}">${escapeHTML(u.name)}<small>${escapeHTML(UNITS[u.kind]?.name)} · ${orderStatus(u)}</small></button><span class="roster-hp">${Math.round(u.hp)} PV</span><button class="text-button" data-action="rename" data-unit-id="${u.id}">Renombrar</button></div>`).join('')+(filtered.length>200?'<p>Refina la búsqueda para encontrar otros habitantes.</p>':'');
 }
 function renamePanel(unitId){
   const entity=world?.getEntity(unitId);if(!entity||entity.team!==1||!UNITS[entity.kind])return;
@@ -348,6 +376,7 @@ function handleAction(button,event){
     case 'tab':currentTab=button.dataset.tab;catalogSignature='';refreshHUD();break;
     case 'stop':execute('stop',{unitIds:ownUnits().map(e=>e.id)});cancelTargeting();break;
     case 'defend':execute('defend',{unitIds:ownUnits().map(e=>e.id)});cancelTargeting();break;
+    case 'formation':chooseFormation(button.dataset.formation);cancelTargeting();break;
     case 'attack-move':if(ownUnits().length){cancelTargeting();attackMove=true;refreshPlacementHint();$('#world-canvas').style.cursor='crosshair';}else announce('Selecciona unidades para dar esta orden.',true);break;
     case 'select-idle':selectIdle(event.shiftKey);break;
     case 'select-entity':focusEntity(button.dataset.unitId);break;
@@ -384,16 +413,16 @@ function selectIdle(all=false){
 function contextOrder(clientX,clientY){
   if(!world)return;
   const entity=renderer.pick(clientX,clientY),position=renderer.screenToWorld(clientX,clientY),unitIds=ownUnits().map(u=>u.id),workers=selectedWorkers();
-  if(!unitIds.length){const building=selectedProducer();if(building)execute('rally',{buildingId:building.id,x:position.x,y:position.y});return;}
+  if(!unitIds.length){const building=selectedProducer();if(building){const resource=entity&&(world.state.nodes.some(node=>node.id===entity.id)||entity.kind==='farm');execute('rally',{buildingId:building.id,...(resource?{targetId:entity.id}:{x:position.x,y:position.y})});}return;}
   if(entity&&entity.team&&entity.team!==1){execute('attack',{unitIds,targetId:entity.id});}
   else if(entity&&world.state.nodes.some(n=>n.id===entity.id)){
     const gatherers=ownUnits().filter(u=>UNITS[u.kind].gatherRate&&(entity.kind==='fish'?u.kind==='fishing_boat':u.kind!=='fishing_boat')).map(u=>u.id);
     if(gatherers.length)execute('gather',{unitIds:gatherers,targetId:entity.id});
-    const escorts=unitIds.filter(id=>!gatherers.includes(id));if(escorts.length)execute('move',{unitIds:escorts,x:position.x,y:position.y});
+    const escorts=ownUnits().filter(unit=>!gatherers.includes(unit.id));if(escorts.length)execute('move',{unitIds:escorts.map(unit=>unit.id),x:position.x,y:position.y,formation:formationFor(escorts)});
   }
   else if(entity&&entity.team===1&&BUILDINGS[entity.kind]&&workers.length&&(entity.hp<entity.maxHp||entity.progress<1)){execute('repair',{unitIds:workers,targetId:entity.id});}
   else if(entity&&entity.team===1&&entity.kind==='farm'&&workers.length){execute('gather',{unitIds:workers,targetId:entity.id});}
-  else execute('move',{unitIds,x:position.x,y:position.y,attackMove});
+  else execute('move',{unitIds,x:position.x,y:position.y,attackMove,formation:formationFor()});
   cancelTargeting();
 }
 function bindWorldInputs(){
@@ -428,7 +457,7 @@ function bindWorldInputs(){
     if(placement){const {kind,x,y}=placement;const result=['wall','palisade'].includes(kind)?execute('wall',{unitIds:selectedWorkers(),kind,x,y,endX:placement.endX??x,endY:placement.endY??y}):execute('build',{unitIds:selectedWorkers(),kind,x,y});if(result.ok&&!event.shiftKey)cancelTargeting();}
     else if(targetedSpell){execute('cast',{unitIds:ownUnits().filter(u=>UNITS[u.kind].spell===targetedSpell).map(u=>u.id),x:p.x,y:p.y,spell:targetedSpell});cancelTargeting();}
     else if(convertTarget){if(entity)execute('convert',{unitIds:ownUnits().filter(u=>u.kind==='wizard').map(u=>u.id),targetId:entity.id});else announce('Elige una unidad rival para convertir.',true);cancelTargeting();}
-    else if(attackMove){execute('move',{unitIds:ownUnits().map(u=>u.id),x:p.x,y:p.y,attackMove:true});cancelTargeting();}
+    else if(attackMove){execute('move',{unitIds:ownUnits().map(u=>u.id),x:p.x,y:p.y,attackMove:true,formation:formationFor()});cancelTargeting();}
     else if(dragRect){
       const rect=canvas.getBoundingClientRect(),chosen=world.state.units.filter(u=>{if(u.team!==1||u.hp<=0)return false;const s=renderer.worldToScreen(u.x,u.y);return s.x-rect.left>=dragRect.x&&s.x-rect.left<=dragRect.x+dragRect.width&&s.y-rect.top>=dragRect.y&&s.y-rect.top<=dragRect.y+dragRect.height;}).map(u=>u.id);
       select(event.shiftKey?[...selectedIds,...chosen]:chosen);
@@ -488,8 +517,8 @@ function frame(timestamp){
 }
 
 const game = {
-  get world(){return world;},get renderer(){return renderer;},get selectedIds(){return [...selectedIds];},get worldGeneration(){return worldGeneration;},get pauseGeneration(){return humanPauseGeneration;},get stats(){return appStats;},
-  select,announce,newMatch,save,load,setPlacement,openPanel,execute,
+  get world(){return world;},get renderer(){return renderer;},get selectedIds(){return [...selectedIds];},get formation(){return formationFor();},get worldGeneration(){return worldGeneration;},get pauseGeneration(){return humanPauseGeneration;},get stats(){return appStats;},
+  select,announce,newMatch,save,load,setPlacement,openPanel,execute,chooseFormation,
   view(action,args={}) {
     switch(action){
       case 'close-panel':closePanel();break;

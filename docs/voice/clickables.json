@@ -242,7 +242,7 @@
       "voiceTool": "propose_convert"
     },
     {
-      "control": "Clic derecho terreno con productor seleccionado",
+      "control": "Clic derecho terreno, recurso o huerto con productor seleccionado",
       "file": "src/app.js",
       "handler": "contextOrder",
       "kind": "consequential",
@@ -384,6 +384,193 @@
       "kind": "skip",
       "roleGate": [],
       "voiceTool": null
+    },
+    {
+      "control": "Línea, Caja y Escalonada en selección de habitantes",
+      "file": "src/app.js",
+      "handler": "chooseFormation",
+      "kind": "consequential",
+      "roleGate": [
+        "commander"
+      ],
+      "voiceTool": "propose_formation"
+    }
+  ],
+  "actualDomActions": [
+    {
+      "action": "attack-move",
+      "voiceTool": "propose_move",
+      "reason": "mapped"
+    },
+    {
+      "action": "cancel-train",
+      "voiceTool": "propose_cancel_train",
+      "reason": "mapped"
+    },
+    {
+      "action": "center-selection",
+      "voiceTool": "camera_view",
+      "reason": "mapped"
+    },
+    {
+      "action": "choose-guild",
+      "voiceTool": "configure_match",
+      "reason": "mapped"
+    },
+    {
+      "action": "choose-map",
+      "voiceTool": "configure_match",
+      "reason": "mapped"
+    },
+    {
+      "action": "close-panel",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "continue-world",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "defend",
+      "voiceTool": "propose_defend",
+      "reason": "mapped"
+    },
+    {
+      "action": "difficulty",
+      "voiceTool": "configure_match",
+      "reason": "mapped"
+    },
+    {
+      "action": "formation",
+      "voiceTool": "propose_formation",
+      "reason": "mapped"
+    },
+    {
+      "action": "gate-toggle",
+      "voiceTool": "propose_gate",
+      "reason": "mapped"
+    },
+    {
+      "action": "help",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "load",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "load-file",
+      "voiceTool": null,
+      "reason": "manual voice/file-dialog control"
+    },
+    {
+      "action": "load-local",
+      "voiceTool": "propose_load",
+      "reason": "mapped"
+    },
+    {
+      "action": "new-match",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "pause",
+      "voiceTool": "propose_pause",
+      "reason": "mapped"
+    },
+    {
+      "action": "rename",
+      "voiceTool": "propose_rename",
+      "reason": "mapped"
+    },
+    {
+      "action": "rename-submit",
+      "voiceTool": "propose_rename",
+      "reason": "mapped"
+    },
+    {
+      "action": "return-menu",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "roster",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "roster-search",
+      "voiceTool": "read_residents",
+      "reason": "mapped"
+    },
+    {
+      "action": "save",
+      "voiceTool": "open_panel",
+      "reason": "mapped"
+    },
+    {
+      "action": "save-now",
+      "voiceTool": "propose_save",
+      "reason": "mapped"
+    },
+    {
+      "action": "select-entity",
+      "voiceTool": "select_units",
+      "reason": "mapped"
+    },
+    {
+      "action": "select-idle",
+      "voiceTool": "select_units",
+      "reason": "mapped"
+    },
+    {
+      "action": "speed",
+      "voiceTool": "propose_speed",
+      "reason": "mapped"
+    },
+    {
+      "action": "start-match",
+      "voiceTool": "propose_new_match",
+      "reason": "mapped"
+    },
+    {
+      "action": "stop",
+      "voiceTool": "propose_stop_units",
+      "reason": "mapped"
+    },
+    {
+      "action": "tab",
+      "voiceTool": "show_catalog",
+      "reason": "mapped"
+    },
+    {
+      "action": "trade",
+      "voiceTool": "propose_trade",
+      "reason": "mapped"
+    },
+    {
+      "action": "trade-amount",
+      "voiceTool": "propose_trade",
+      "reason": "mapped"
+    },
+    {
+      "action": "voice",
+      "voiceTool": null,
+      "reason": "manual voice/file-dialog control"
+    },
+    {
+      "action": "zoom-in",
+      "voiceTool": "camera_view",
+      "reason": "mapped"
+    },
+    {
+      "action": "zoom-out",
+      "voiceTool": "camera_view",
+      "reason": "mapped"
     }
   ],
   "tools": [
@@ -866,7 +1053,7 @@
       "name": "propose_move",
       "title": "Mover habitantes",
       "kind": "consequential",
-      "description": "Ordena inmediatamente una marcha normal u ofensiva al destino exacto. Resuelve el lugar desde el mapa real; las coordenadas son opcionales y se conservan para órdenes explícitas.",
+      "description": "Ordena inmediatamente una marcha normal u ofensiva al destino real y conserva la formación elegida; por defecto usa caja. Resuelve lugares sin solicitar coordenadas ni confirmación.",
       "allowedRoles": [
         "commander"
       ],
@@ -901,6 +1088,15 @@
             "type": "boolean",
             "description": "Atacar enemigos encontrados durante la marcha."
           },
+          "formation": {
+            "type": "string",
+            "description": "Formación de marcha: línea, caja o escalonada. Omitir conserva la formación del grupo o usa caja.",
+            "enum": [
+              "line",
+              "box",
+              "staggered"
+            ]
+          },
           "destination": {
             "type": "string",
             "description": "Destino natural del mapa: mi base, base enemiga, cuartel, bosque más cercano; sanación: heridos o nombre propio. No inventes ni solicites coordenadas.",
@@ -909,6 +1105,62 @@
           }
         },
         "required": []
+      }
+    },
+    {
+      "name": "propose_formation",
+      "title": "Cambiar formación",
+      "kind": "consequential",
+      "description": "Reagrupa inmediatamente los habitantes en línea, caja o formación escalonada. Sin destino, usa el centro del grupo. No pide coordenadas ni confirmación.",
+      "allowedRoles": [
+        "commander"
+      ],
+      "annotations": {
+        "readOnlyHint": false,
+        "consequentialHint": true
+      },
+      "inputSchema": {
+        "type": "object",
+        "description": "Argumentos para cambiar la formación de habitantes.",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string",
+            "description": "Nombre, ID o profesión de habitantes propios. Omitir usa la selección actual o el ejército propio.",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "kind": {
+            "type": "string",
+            "description": "Formación: line es línea, box es caja y staggered es escalonada.",
+            "enum": [
+              "line",
+              "box",
+              "staggered"
+            ]
+          },
+          "x": {
+            "type": "number",
+            "description": "Coordenada horizontal opcional del centro de formación; requiere y.",
+            "minimum": 0,
+            "maximum": 79.99
+          },
+          "y": {
+            "type": "number",
+            "description": "Coordenada vertical opcional del centro de formación; requiere x.",
+            "minimum": 0,
+            "maximum": 79.99
+          },
+          "destination": {
+            "type": "string",
+            "description": "Lugar natural opcional para reagruparse, por ejemplo mi base. Omitir usa el centro actual del grupo.",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "kind"
+        ]
       }
     },
     {
@@ -1436,7 +1688,7 @@
       "name": "propose_rally",
       "title": "Punto de reunión",
       "kind": "consequential",
-      "description": "Fija inmediatamente el destino de los nuevos reclutas de un edificio propio. Resuelve el lugar desde el mapa real; las coordenadas son opcionales y se conservan para órdenes explícitas.",
+      "description": "Fija inmediatamente el destino de nuevos reclutas. Si eliges un recurso o huerto real, los trabajadores compatibles salen a recolectar. Usa el productor seleccionado si omites edificio; no pide coordenadas ni confirmación.",
       "allowedRoles": [
         "commander"
       ],
@@ -1452,6 +1704,12 @@
           "building": {
             "type": "string",
             "description": "Nombre único o ID estable del edificio propio. Si se omite, se usa la selección o el único productor compatible.",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "targetId": {
+            "type": "string",
+            "description": "ID exacto de un recurso o huerto real para que los nuevos trabajadores compatibles recolecten.",
             "minLength": 1,
             "maxLength": 80
           },
@@ -1474,9 +1732,7 @@
             "maxLength": 120
           }
         },
-        "required": [
-          "building"
-        ]
+        "required": []
       }
     },
     {

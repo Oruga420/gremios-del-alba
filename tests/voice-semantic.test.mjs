@@ -95,7 +95,9 @@ test('SEM07 move resolves enemy base, home, selected villagers and the nearest r
   assert.equal(h.text('Mueve los soldados a la base enemiga').ok,true);
   assert.equal(h.calls.at(-1).args.x,enemy.x+2);
   h.game.select([luna.id]);assert.equal(h.text('Regresa a casa').ok,true);
-  assert.deepEqual(h.calls.at(-1).args.unitIds,[luna.id]);assert.equal(luna.order.x,10);
+  assert.deepEqual(h.calls.at(-1).args.unitIds,[luna.id]);assert.equal(h.calls.at(-1).args.x,10);assert.equal(h.calls.at(-1).args.y,10);
+  assert.ok(h.world.navigation.walkable(Math.floor(luna.order.x),Math.floor(luna.order.y)),'The formation destination must be outside the hall footprint.');
+  assert.ok(Math.hypot(luna.order.x-10,luna.order.y-10)<=BUILDINGS.guildhall.size+1);
   assert.equal(h.text('Luna ve al bosque más cercano').ok,true);
   const nodes=h.world.state.nodes.filter(n=>n.kind==='wood'&&n.amount>0).sort((a,b)=>Math.hypot(a.x-luna.x,a.y-luna.y)-Math.hypot(b.x-luna.x,b.y-luna.y));
   assert.equal(luna.order.x,nodes[0].x);assert.equal(luna.order.y,nodes[0].y);
@@ -139,8 +141,8 @@ test('SEM11 affordability, cap, ownership and unknown landmarks cannot bypass th
   assert.equal(h.registry.runTool('propose_train',{kind:'villager',quantity:1}).code,'ENGINE_REJECTED');assert.equal(hall.queue.length,0);
 });
 
-test('SEM12 exact 36 tool inventory parity and semantic keys remain available to cloud and native adapters', () => {
-  const tools=exportRegistry();assert.equal(tools.length,36);assert.deepEqual(JSON.parse(fs.readFileSync(new URL('../docs/voice/clickables.json',import.meta.url),'utf8')).tools,tools);
+test('SEM12 exact tool inventory parity and semantic keys remain available to cloud and native adapters', () => {
+  const tools=exportRegistry();assert.equal(new Set(tools.map(tool=>tool.name)).size,tools.length);assert.deepEqual(JSON.parse(fs.readFileSync(new URL('../docs/voice/clickables.json',import.meta.url),'utf8')).tools,tools);
   for(const name of ['propose_build','propose_wall','propose_move','propose_cast']){const schema=tools.find(t=>t.name===name).inputSchema;assert.equal(schema.required.includes('x'),false);assert.equal(schema.required.includes('y'),false);}
 });
 

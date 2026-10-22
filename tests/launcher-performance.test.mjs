@@ -47,7 +47,7 @@ test('voice export uses explicit environment settings and leaves provider defaul
     const configured=await exportPersonalDefinition();
     assert.equal(configured.conversation_config.tts.voice_id,'configured-voice');
     assert.equal(configured.conversation_config.agent.prompt.llm,'configured-model');
-    assert.equal(configured.conversation_config.agent.prompt.tools.length,36);
+    assert.equal(configured.conversation_config.agent.prompt.tools.length,37);
   } finally {
     names.forEach((name,index)=>{ if(saved[index]===undefined) delete process.env[name]; else process.env[name]=saved[index]; });
   }

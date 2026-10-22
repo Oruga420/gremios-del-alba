@@ -9,6 +9,9 @@ const unknown = (speak) => ({ error: { ok:false, code:'COMMAND_NOT_UNDERSTOOD', 
 const rawTarget = (value) => String(value || '').trim().replace(/^(?:a|al|el|la|los|las|mis|mi)\s+/iu,'');
 function coordinates(text) { const match = text.match(/(-?\d+(?:[.]\d+)?)\s*[,;]\s*(-?\d+(?:[.]\d+)?)/u) || text.match(/(?:en|a|hasta)\s+(\d+)\s+(?:y|con)\s+(\d+)/iu); return match ? { x:Number(match[1]), y:Number(match[2]) } : null; }
 function targetBefore(text, verb) { const index = text.search(verb); return index > 0 ? text.slice(0,index).trim().replace(/[,;:]$/u,'').trim() : undefined; }
+const formationPhrase = /(?:\ben\s+)?(?:\bformaci[oó]n\s+)?\b(l[ií]nea|caja|cuadro|cuadrado|escalonad[ao])\b/iu;
+const movingFormationPhrase = /(?:\ben\s+(?:formaci[oó]n\s+)?|\bformaci[oó]n\s+)\b(l[ií]nea|caja|cuadro|cuadrado|escalonad[ao])\b/iu;
+const formationKind = value => /^l[ií]nea$/iu.test(value) ? 'line' : /^escalonad/iu.test(value) ? 'staggered' : 'box';
 
 export function parseSpanishCommand(original, { game, confirm, mode = 'direct' } = {}) {
   const text = String(original || '').trim().replace(/[.!?¿¡]+$/u,'');
@@ -55,15 +58,26 @@ export function parseSpanishCommand(original, { game, confirm, mode = 'direct' }
   if (match && /puerta|gate/iu.test(match[1])) return command('propose_gate',{building:match[1],open:/^abr/iu.test(text)});
   match = text.match(/^(?:nuevo mapa|nueva partida|comienza en|comenzar en|cambia el mapa a)\s+(.+)$/iu);
   if (match) { const map = MAPS.find((entry)=>[normalize(entry.id.replaceAll('-',' ')),normalize(entry.name)].includes(normalize(match[1]))); const state = game?.world?.state; return map ? command('propose_new_match',{mapId:map.id,guildId:state?.guildId||'alba',difficulty:state?.difficulty||'normal',mode:state?.mode||'conquest'}) : unknown('No encontré esa región. Consulta el catálogo de mapas.'); }
+  match = text.match(/^(?:(?:fija|pon|establece|cambia)\s+(?:el\s+)?)?punto\s+de\s+reuni[oó]n(?:\s+(?:del|de la|de)\s+(.+?))?\s+(?:a|al|en|hacia)\s+(.+)$/iu);
+  if (match) { const point = coordinates(match[2]); return command('propose_rally',{...(match[1]?{building:match[1]}:{}),...(point||{destination:match[2]})}); }
+  const formationCommand = /^(?:forma|formen|formar|formacion|agrupa|agrupen|pon|pongan)\b/u.test(normalized);
+  const formation = text.match(formationCommand ? formationPhrase : movingFormationPhrase);
+  if (formation && formationCommand) {
+    const target = text.slice(0,formation.index).replace(/^(?:forma|formen|formar|formaci[oó]n|agrupa|agrupen|pon|pongan)\s*/iu,'').replace(/\s+(?:en|en formaci[oó]n)\s*$/iu,'').trim();
+    const after = text.slice(formation.index+formation[0].length).trim();
+    if (after && !/^(?:a|al|en|hacia)\s+/iu.test(after)) return unknown('Prueba «forma en línea» o «forma los arqueros en caja».');
+    return command('propose_formation',{kind:formationKind(formation[1]),...(target?{target:rawTarget(target)}:{}),...(after?{destination:after.replace(/^(?:a|al|en|hacia)\s+/iu,'')}:{})});
+  }
   const gatherVerb = /\b(?:recoge|recoger|recolecta|recolecten|recogan|tala|talen|gather)\b/iu;
   if (gatherVerb.test(text)) { const verb = text.match(gatherVerb); const after = text.slice(verb.index+verb[0].length).trim(); const resource = resourceKind(after); return resource ? command('propose_gather',{resource,...(targetBefore(text,gatherVerb)?{target:targetBefore(text,gatherVerb)}:{})}) : unknown('Indica madera, alimento, oro, piedra o pesca.'); }
   const moveVerb = /\b(?:mueve|mu[eé]vete|mover|muevan|avancen|avanza|ve|vayan|regresa|regresen|vuelve|vuelvan|manda|env[ií]a|move)\b/iu;
   if (moveVerb.test(text)) {
-    const verb=text.match(moveVerb),before=targetBefore(text,moveVerb),point=coordinates(text),after=text.slice(verb.index+verb[0].length).trim();
-    if(point){const target=after.replace(/\s*(?:a|hasta|en)\s+[-\d].*$/u,'').replace(/^[-\d].*$/u,'').trim();return command('propose_move',{...point,...(before?{target:before}:target?{target:rawTarget(target)}:{})});}
+    const moveText=formation?text.replace(formation[0],' ').replace(/\s+/gu,' ').trim():text,style=formation?{formation:formationKind(formation[1])}:{};
+    const verb=moveText.match(moveVerb),before=targetBefore(moveText,moveVerb),point=coordinates(moveText),after=moveText.slice(verb.index+verb[0].length).trim();
+    if(point){const target=after.replace(/\s*(?:a|hasta|en)\s+[-\d].*$/u,'').replace(/^[-\d].*$/u,'').trim();return command('propose_move',{...point,...style,...(before?{target:before}:target?{target:rawTarget(target)}:{})});}
     const split=after.match(/^(.+?)\s+(?:a|al|hasta|hacia)\s+(.+)$/iu);
     const destination=before?after.replace(/^(?:a|al|hasta|hacia)\s+/iu,''):split?split[2]:after.replace(/^(?:a|al|hasta|hacia)\s+/iu,'');
-    return command('propose_move',{destination:destination||'mi base',...(before?{target:before}:split?{target:rawTarget(split[1])}:{})});
+    return command('propose_move',{destination:destination||'mi base',...style,...(before?{target:before}:split?{target:rawTarget(split[1])}:{})});
   }
   const defendVerb = /\b(?:defiende|defiendan|defender|defend)\b/iu;
   if (defendVerb.test(text)) { const verb=text.match(defendVerb),before=targetBefore(text,defendVerb),after=rawTarget(text.slice(verb.index+verb[0].length).trim()); return command('propose_defend',{...(before?{target:before}:{}),...(after?{anchor:after}:{})}); }

@@ -479,7 +479,7 @@ export const TOOL_SPECS = [
     "name": "propose_move",
     "title": "Mover habitantes",
     "kind": "consequential",
-    "description": "Ordena inmediatamente una marcha normal u ofensiva al destino exacto. Resuelve el lugar desde el mapa real; las coordenadas son opcionales y se conservan para órdenes explícitas.",
+    "description": "Ordena inmediatamente una marcha normal u ofensiva al destino real y conserva la formación elegida; por defecto usa caja. Resuelve lugares sin solicitar coordenadas ni confirmación.",
     "allowedRoles": [
       "commander"
     ],
@@ -514,6 +514,11 @@ export const TOOL_SPECS = [
           "type": "boolean",
           "description": "Atacar enemigos encontrados durante la marcha."
         },
+        "formation": {
+          "type": "string",
+          "description": "Formación de marcha: línea, caja o escalonada. Omitir conserva la formación del grupo o usa caja.",
+          "enum": ["line", "box", "staggered"]
+        },
         "destination": {
           "type": "string",
           "description": "Destino natural del mapa: mi base, base enemiga, cuartel, bosque más cercano; sanación: heridos o nombre propio. No inventes ni solicites coordenadas.",
@@ -522,6 +527,51 @@ export const TOOL_SPECS = [
         }
       },
       "required": []
+    }
+  },
+  {
+    "name": "propose_formation",
+    "title": "Cambiar formación",
+    "kind": "consequential",
+    "description": "Reagrupa inmediatamente los habitantes en línea, caja o formación escalonada. Sin destino, usa el centro del grupo. No pide coordenadas ni confirmación.",
+    "allowedRoles": ["commander"],
+    "annotations": { "readOnlyHint": false, "consequentialHint": true },
+    "inputSchema": {
+      "type": "object",
+      "description": "Argumentos para cambiar la formación de habitantes.",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Nombre, ID o profesión de habitantes propios. Omitir usa la selección actual o el ejército propio.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "kind": {
+          "type": "string",
+          "description": "Formación: line es línea, box es caja y staggered es escalonada.",
+          "enum": ["line", "box", "staggered"]
+        },
+        "x": {
+          "type": "number",
+          "description": "Coordenada horizontal opcional del centro de formación; requiere y.",
+          "minimum": 0,
+          "maximum": 79.99
+        },
+        "y": {
+          "type": "number",
+          "description": "Coordenada vertical opcional del centro de formación; requiere x.",
+          "minimum": 0,
+          "maximum": 79.99
+        },
+        "destination": {
+          "type": "string",
+          "description": "Lugar natural opcional para reagruparse, por ejemplo mi base. Omitir usa el centro actual del grupo.",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": ["kind"]
     }
   },
   {
@@ -1049,7 +1099,7 @@ export const TOOL_SPECS = [
     "name": "propose_rally",
     "title": "Punto de reunión",
     "kind": "consequential",
-    "description": "Fija inmediatamente el destino de los nuevos reclutas de un edificio propio. Resuelve el lugar desde el mapa real; las coordenadas son opcionales y se conservan para órdenes explícitas.",
+    "description": "Fija inmediatamente el destino de nuevos reclutas. Si eliges un recurso o huerto real, los trabajadores compatibles salen a recolectar. Usa el productor seleccionado si omites edificio; no pide coordenadas ni confirmación.",
     "allowedRoles": [
       "commander"
     ],
@@ -1065,6 +1115,12 @@ export const TOOL_SPECS = [
         "building": {
           "type": "string",
           "description": "Nombre único o ID estable del edificio propio. Si se omite, se usa la selección o el único productor compatible.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "targetId": {
+          "type": "string",
+          "description": "ID exacto de un recurso o huerto real para que los nuevos trabajadores compatibles recolecten.",
           "minLength": 1,
           "maxLength": 80
         },
@@ -1087,9 +1143,7 @@ export const TOOL_SPECS = [
           "maxLength": 120
         }
       },
-      "required": [
-        "building"
-      ]
+      "required": []
     }
   },
   {

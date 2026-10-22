@@ -1,5 +1,6 @@
 import { MAPS, GUILDS, UNITS, BUILDINGS, TECHNOLOGIES, TERRAIN, AGE_COSTS } from './data.js';
 import { Navigation, SpatialIndex } from './navigation.js';
+import { FORMATIONS, planFormation } from './formations.js';
 
 const RESOURCE_KEYS = ['wood','food','gold','stone'];
 const ORDER_TYPES = new Set(['idle','move','gather','build','repair','attack','defend','convert']);
@@ -92,14 +93,19 @@ export class World {
   _command(type,args={},team=1){
     if(!args||typeof args!=='object'||Array.isArray(args)||Object.prototype.hasOwnProperty.call(args,'team'))return fail('Argumentos inválidos');
     const t=this.state.teams[team];if(!t)return fail('Ciudad inválida');
-    if(['move','gather','build','wall','repair','attack','stop','defend','cast','convert'].includes(type)&&!this._ownedUnits(args.unitIds,team))return fail('Selecciona unidades propias válidas');
+    if(['move','formation','gather','build','wall','repair','attack','stop','defend','cast','convert'].includes(type)&&!this._ownedUnits(args.unitIds,team))return fail('Selecciona unidades propias válidas');
     const units=Array.isArray(args.unitIds)?args.unitIds.map(id=>this.getEntity(id)):[];
     if(type==='pause'){if(typeof args.paused!=='boolean')return fail('Pausa inválida');this.state.paused=args.paused;this.state.pauseRevision++;return done(args.paused?'Partida pausada':'Partida reanudada');}
     if(type==='speed'){if(![.5,1,2].includes(args.speed))return fail('Velocidad inválida');this.state.speed=args.speed;return done('Velocidad actualizada');}
     if(type==='rename'){const u=this.getEntity(args.unitId);if(!u||!UNITS[u.kind]||u.team!==team||typeof args.name!=='string')return fail('Aldeano o nombre inválido');const name=args.name.normalize('NFKC').trim().replace(/\s+/gu,' ');if(!name||name.length>48||/[\u0000-\u001f\u007f]/u.test(name)||this.state.units.some(e=>e.id!==u.id&&norm(e.name)===norm(name)))return fail('El nombre debe ser único y tener 1–48 caracteres');u.name=name;return done(`${name} está listo`);}
-    if(type==='move'){if(!this._position(args.x,args.y)||('attackMove'in args&&typeof args.attackMove!=='boolean'))return fail('Destino inválido');for(const u of units){this._order(u,{type:'move',x:args.x,y:args.y,attackMove:!!args.attackMove});this._recordNavigation(u,args.x,args.y);}return done('En marcha',{unitIds:args.unitIds});}
+    if(type==='move'){if(!this._position(args.x,args.y)||('attackMove'in args&&typeof args.attackMove!=='boolean')||('formation'in args&&!FORMATIONS.includes(args.formation)))return fail('Destino o formación inválida');return this._moveGroup(units,args.x,args.y,args.formation??units.find(u=>u.formation)?.formation,!!args.attackMove);}
+    if(type==='formation'){
+      if(!FORMATIONS.includes(args.kind)||(('x'in args||'y'in args)&&!this._position(args.x,args.y)))return fail('Formación o destino inválido');
+      const x=args.x??units.reduce((sum,u)=>sum+u.x,0)/units.length,y=args.y??units.reduce((sum,u)=>sum+u.y,0)/units.length;
+      return this._moveGroup(units,x,y,args.kind,false);
+    }
     if(type==='stop'||type==='defend'){let target=null;if(type==='defend'&&args.targetId){target=this.getEntity(args.targetId);if(!target||target.team!==team||target.hp<=0)return fail('Ancla defensiva inválida');}if(type==='defend'&&('x'in args||'y'in args)&&!this._position(args.x,args.y))return fail('Destino defensivo inválido');for(const u of units){const x=target?.x??args.x??u.x,y=target?.y??args.y??u.y;this._order(u,{type:type==='stop'?'idle':'defend',x,y});if(type==='defend'&&(target||'x'in args))this._recordNavigation(u,x,y);}return done(type==='stop'?'Unidades detenidas':'Posición defendida');}
-    if(type==='gather'){let node=this.getEntity(args.targetId);if(node?.kind==='farm')node=this.state.nodes.find(n=>n.buildingId===node.id&&n.amount>0);if(!node&&typeof args.resource==='string')node=this.state.nodes.filter(n=>n.kind===args.resource&&n.amount>0).sort((a,b)=>distance(a,units[0])-distance(b,units[0]))[0];if(!node||!this.state.nodes.includes(node)||node.amount<=0||units.some(u=>!(UNITS[u.kind].gatherRate)||(u.kind==='fishing_boat'?(node.kind!=='fish'):node.kind==='fish')))return fail('Recurso o recolectores inválidos');for(const u of units)this._order(u,{type:'gather',targetId:node.id,phase:u.carry.amount>0?'deliver':'gather'});return done('Recolección iniciada',{targetId:node.id});}
+    if(type==='gather'){let node=this.getEntity(args.targetId);if(node?.kind==='farm')node=this.state.nodes.find(n=>n.buildingId===node.id&&n.amount>0);if(!node&&typeof args.resource==='string')node=this._findResource(units[0],args.resource);if(!node||!this.state.nodes.includes(node)||units.some(u=>!this._resourceAllowed(u,node)))return fail('Recurso o recolectores inválidos');for(const u of units)this._order(u,{type:'gather',targetId:node.id,resource:node.kind,phase:u.carry.amount>0?'deliver':'gather'});return done('Recolección iniciada',{targetId:node.id});}
     if(type==='build'||type==='wall'){if(units.some(u=>u.kind!=='villager'))return fail('Solo los aldeanos construyen');const kind=args.kind,d=definition(BUILDINGS,kind);if(!d||d.age>t.age)return fail('Edificio no disponible en esta era');const plots=[];
       if(type==='wall'){if(!['wall','palisade'].includes(kind)||!this._position(args.x,args.y)||!this._position(args.endX,args.endY)||![args.x,args.y,args.endX,args.endY].every(Number.isInteger))return fail('Muralla inválida');const dx=args.endX-args.x,dy=args.endY-args.y,n=Math.max(Math.abs(dx),Math.abs(dy));if(n>79)return fail('Línea demasiado larga');for(let i=0;i<=n;i++)plots.push({kind,x:Math.round(args.x+(n?dx*i/n:0)),y:Math.round(args.y+(n?dy*i/n:0)),hp:1});
       }else plots.push({kind,x:args.x,y:args.y,hp:1});
@@ -109,7 +115,14 @@ export class World {
     if(type==='repair'){const b=this._ownedBuilding(args.targetId,team);if(!b||(b.hp>=b.maxHp&&b.progress===1)||units.some(u=>u.kind!=='villager')||('budgetWood'in args&&(!finite(args.budgetWood)||args.budgetWood<=0||args.budgetWood>1e6)))return fail('Reparación inválida');for(const u of units)this._order(u,{type:b.progress<1?'build':'repair',targetId:b.id,...('budgetWood'in args&&b.progress===1?{remainingRepairWood:args.budgetWood/units.length}:{})});return done(b.progress<1?'Construcción reanudada':'Reparación iniciada');}
     if(type==='train'){const b=this._ownedBuilding(args.buildingId,team),d=definition(UNITS,args.kind),quantity=args.quantity??1;if(!b||b.progress<1||!d||!BUILDINGS[b.kind].trains?.includes(args.kind)||d.age>t.age||!Number.isInteger(quantity)||quantity<1||quantity>100||b.queue.length+quantity>100)return fail('Entrenamiento inválido');const s=this.summary(team);if(s.population+s.reservedPopulation+quantity>s.capacity||s.population+s.reservedPopulation+quantity>1000)return fail('No hay alojamiento disponible');const price=sumCost(d.cost,quantity);if(!this._afford(team,price))return fail('Recursos insuficientes');if(!this.navigation.nearest(b.x+BUILDINGS[b.kind].size,b.y+BUILDINGS[b.kind].size,d.movement,20))return fail('No hay salida adecuada para esta unidad');this._spend(team,price);for(let i=0;i<quantity;i++)b.queue.push({type:'train',kind:args.kind,remaining:d.trainTime,duration:d.trainTime,cost:{...d.cost}});return done('Unidades en cola',{quantity});}
     if(type==='cancel_train'){const b=this._ownedBuilding(args.buildingId,team),i=args.queueIndex??0;if(!b||!Number.isInteger(i)||i<0||i>=b.queue.length)return fail('Cola inválida');const[q]=b.queue.splice(i,1);this._spend(team,q.cost,1);return done('Orden cancelada y recursos devueltos');}
-    if(type==='rally'){const b=this._ownedBuilding(args.buildingId,team);if(!b||!this._position(args.x,args.y))return fail('Punto de reunión inválido');b.rally={x:args.x,y:args.y};return done('Punto de reunión actualizado');}
+    if(type==='rally'){
+      const b=this._ownedBuilding(args.buildingId,team);if(!b)return fail('Punto de reunión inválido');
+      if('targetId'in args){let n=this.getEntity(args.targetId);if(n?.kind==='farm')n=this.state.nodes.find(e=>e.buildingId===n.id&&e.amount>0);
+        if(!n||!this.state.nodes.includes(n)||n.amount<=0||(n.team&&n.team!==team)||(('x'in args||'y'in args)&&!this._position(args.x,args.y)))return fail('Recurso de reunión inválido');
+        b.rally={x:n.x,y:n.y,targetId:n.id,resource:n.kind};
+      }else{if(!this._position(args.x,args.y))return fail('Punto de reunión inválido');b.rally={x:args.x,y:args.y};}
+      return done('Punto de reunión actualizado');
+    }
     if(type==='gate'){const b=this._ownedBuilding(args.buildingId,team);if(!b||b.kind!=='gate'||b.progress<1||typeof args.open!=='boolean')return fail('Puerta inválida');b.open=args.open;this.navigation.rebuild();return done(args.open?'Puerta abierta':'Puerta cerrada');}
     if(type==='research'){const b=this._ownedBuilding(args.buildingId,team),d=definition(TECHNOLOGIES,args.technologyId);if(!b||b.progress<1||b.queue.length>=100||!d||d.producer!==b.kind||t.age<d.age||d.prerequisites.some(id=>!t.upgrades[id])||t.upgrades[args.technologyId]||this.state.buildings.some(e=>e.team===team&&e.queue.some(q=>q.type==='research'&&q.kind===args.technologyId)))return fail('Tecnología o requisitos inválidos');if(!this._afford(team,d.cost))return fail('Recursos insuficientes');this._spend(team,d.cost);b.queue.push({type:'research',kind:args.technologyId,remaining:d.time,duration:d.time,cost:{...d.cost}});return done('Investigación iniciada');}
     if(type==='advance_age'){const b=this._ownedBuilding(args.buildingId,team),age=t.age+1;if(!b||b.kind!=='guildhall'||b.progress<1||b.queue.length>=100||age>4||this.state.buildings.some(e=>e.team===team&&e.queue.some(q=>q.type==='age')))return fail('Avance de era no disponible');if(age===3&&!this.state.buildings.some(e=>e.team===team&&e.kind==='market'&&e.progress===1&&e.hp>0))return fail('Construye un mercado antes de la tercera era');if(age===4&&!this.state.buildings.some(e=>e.team===team&&e.kind==='academy'&&e.progress===1&&e.hp>0))return fail('Construye una academia antes de la cuarta era');if(!this._afford(team,AGE_COSTS[age]))return fail('Recursos insuficientes');this._spend(team,AGE_COSTS[age]);b.queue.push({type:'age',kind:String(age),remaining:20,duration:20,cost:{...AGE_COSTS[age]}});return done('Avance de era iniciado');}
@@ -119,6 +132,18 @@ export class World {
     return fail('Orden desconocida');
   }
   _order(u,order){if(u.navigationIndex!==null){const r=this.state.navigation[u.navigationIndex];if(r&&['pending','moving'].includes(r.status)){r.status='cancelled';r.resolvedAt=this.state.time;}}u.order=order;u.waypoint=null;u.navKey=null;u.navigationIndex=null;}
+  _moveGroup(units,x,y,formation,attackMove){
+    const unreachable=[];
+    if(formation){
+      for(const slot of planFormation(this,units,{x,y},formation)){
+        const u=slot.unit;u.formation=formation;
+        if(!slot.reachable){this._order(u,{type:'idle'});this._recordNavigation(u,slot.x,slot.y);this._resolveNavigation(u,'unreachable');unreachable.push(u.id);continue;}
+        this._order(u,{type:'move',x:slot.x,y:slot.y,anchorX:slot.anchorX,anchorY:slot.anchorY,formation,marchSpeed:slot.marchSpeed,attackMove,route:[],routeCursor:0,routeVersion:-1});
+        this._recordNavigation(u,slot.x,slot.y);
+      }
+    }else for(const u of units){this._order(u,{type:'move',x,y,attackMove});this._recordNavigation(u,x,y);}
+    return done(unreachable.length?`Formación asignada; ${unreachable.length} sin posición alcanzable`:formation?'Formación en marcha':'En marcha',{unitIds:units.map(u=>u.id),...(formation?{formation}:{}),...(unreachable.length?{unreachableUnitIds:unreachable}:{})});
+  }
   _compactNavigation(){
     const history=this.state.navigation,keep=new Set();
     for(let i=0;i<history.length;i++)if(['pending','moving'].includes(history[i].status))keep.add(i);
@@ -131,14 +156,88 @@ export class World {
     this.state.navigation=retained;
   }
   _recordNavigation(u,x,y){if(this.state.navigation.length>=NAVIGATION_HISTORY_LIMIT)this._compactNavigation();const r={unitId:u.id,team:u.team,x,y,commandedAt:this.state.time,startedAt:null,resolvedAt:null,status:'pending'};u.navigationIndex=this.state.navigation.length;this.state.navigation.push(r);}
-  _go(u,x,y,dt,footprint=null){const d=UNITS[u.kind],field=this.navigation.field(x,y,d.movement,footprint);const at=Math.floor(u.y)*80+Math.floor(u.x),record=u.navigationIndex===null?null:this.state.navigation[u.navigationIndex],originalDestination=record&&Math.floor(record.x)===Math.floor(x)&&Math.floor(record.y)===Math.floor(y);
-    if(!field||field.distance[at]<0){if(originalDestination&&['pending','moving'].includes(record.status)){record.status='unreachable';record.resolvedAt=this.state.time;}u.waypoint=null;return 'unreachable';}
+  _resolveNavigation(u,status){
+    const record=u.navigationIndex===null?null:this.state.navigation[u.navigationIndex];
+    if(record&&['pending','moving'].includes(record.status)){
+      record.status=status;record.resolvedAt=this.state.time;
+      if(status==='arrived'){if(record.startedAt===null)record.startedAt=this.state.time;this.state.metrics.movementArrivals++;}
+    }
+  }
+  _motionStep(u,target,dt,formation=false){
+    const d=UNITS[u.kind],dx=target.x-u.x,dy=target.y-u.y,delta=Math.hypot(dx,dy);
+    let speed=formation?Math.min(d.speed,u.order.marchSpeed??d.speed):d.speed;
+    if(d.movement==='water'&&this.state.teams[u.team].upgrades.navigation)speed*=1.25;
+    const step=speed*dt,record=u.navigationIndex===null?null:this.state.navigation[u.navigationIndex];
+    if(delta<1e-7)return 'arrived';
+    let vx=dx/delta,vy=dy/delta;
+    if(formation&&delta>step&&this._motionGrid){
+      let ax=0,ay=0;
+      const gx=Math.floor(u.x*2),gy=Math.floor(u.y*2),uid=Number(u.id.slice(1));
+      for(let yy=gy-1;yy<=gy+1;yy++)for(let xx=gx-1;xx<=gx+1;xx++){
+        const bucket=this._motionGrid.get(`${xx}:${yy}`);if(!bucket)continue;
+        const start=uid%bucket.length;
+        for(let k=0;k<Math.min(8,bucket.length);k++){
+          const other=bucket[(start+k)%bucket.length];if(other===u||UNITS[other.kind].movement!==d.movement)continue;
+          let sx=u.x-other.x,sy=u.y-other.y,dist=Math.hypot(sx,sy);
+          if(dist>=.38)continue;
+          if(dist<1e-7){const oid=Number(other.id.slice(1)),angle=((Math.min(uid,oid)*31+Math.max(uid,oid)*17)%360)*Math.PI/180,sign=uid<oid?1:-1;sx=Math.cos(angle)*sign;sy=Math.sin(angle)*sign;dist=1;}
+          const weight=Math.max(.1,(.38-Math.min(.38,Math.hypot(u.x-other.x,u.y-other.y)))/.38);ax+=sx/dist*weight;ay+=sy/dist*weight;
+        }
+      }
+      const a=Math.hypot(ax,ay);if(a>0){const factor=Math.min(.6,a*.35)/a;vx+=ax*factor;vy+=ay*factor;const v=Math.hypot(vx,vy);vx/=v;vy/=v;}
+    }
+    let nx=delta<=step?target.x:u.x+vx*step,ny=delta<=step?target.y:u.y+vy*step;
+    if(!this.navigation.segmentClear(u.x,u.y,nx,ny,d.movement)){
+      nx=u.x+dx*Math.min(1,step/delta);ny=u.y+dy*Math.min(1,step/delta);
+      if(!this.navigation.segmentClear(u.x,u.y,nx,ny,d.movement))return 'blocked';
+    }
+    if(record&&record.startedAt===null){record.startedAt=this.state.time;record.status='moving';}
+    u.x=nx;u.y=ny;
+    return Math.hypot(target.x-u.x,target.y-u.y)<1e-7?'arrived':'moving';
+  }
+  _goFormation(u,dt){
+    const o=u.order,movement=UNITS[u.kind].movement,target={x:o.x,y:o.y};u.waypoint=null;
+    if(!this.navigation.walkable(Math.floor(o.x),Math.floor(o.y),movement)){this._resolveNavigation(u,'unreachable');return 'unreachable';}
+    if(this.navigation.segmentClear(u.x,u.y,o.x,o.y,movement)){
+      if(o.route.length){o.route=[];o.routeCursor=0;}o.routeVersion=this.navigation.version;
+      const result=this._motionStep(u,target,dt,true);if(result==='arrived')this._resolveNavigation(u,'arrived');return result;
+    }
+    const anchor=this.navigation.nearest(o.anchorX,o.anchorY,movement),field=anchor&&this.navigation.field(anchor.x,anchor.y,movement);
+    if(field===undefined)return 'pending';
+    const at=Math.floor(u.y)*80+Math.floor(u.x),goal=Math.floor(o.y)*80+Math.floor(o.x);
+    if(!field||field.distance[at]<0||field.distance[goal]<0){this._resolveNavigation(u,'unreachable');return 'unreachable';}
+    if(o.routeVersion!==this.navigation.version||!o.route?.length||o.routeCursor>=o.route.length){
+      const route=this.navigation.route(u,target,field,512);
+      if(route.status!=='ok'){this._resolveNavigation(u,'unreachable');return 'unreachable';}
+      o.route=route.cells;o.routeCursor=0;o.routeVersion=this.navigation.version;
+    }
+    const cell=o.route[o.routeCursor];if(cell===undefined)return 'pending';
+    const waypoint={x:cell%80+.5,y:Math.floor(cell/80)+.5},result=this._motionStep(u,waypoint,dt,true);
+    if(result==='arrived')o.routeCursor++;else if(result==='blocked'){o.route=[];o.routeCursor=0;}
+    return 'moving';
+  }
+  _go(u,x,y,dt,footprint=null,navigationGoal=false){
+    if(navigationGoal&&u.order.formation&&!footprint)return this._goFormation(u,dt);
+    const movement=UNITS[u.kind].movement;
+    // Legacy point orders retain tile-center destinations. Local pursuit avoids a full-map field.
+    const target=navigationGoal?{x:Math.floor(x)+.5,y:Math.floor(y)+.5}:{x,y};
+    if(!footprint&&this.navigation.segmentClear(u.x,u.y,target.x,target.y,movement)){
+      u.waypoint=null;u.navKey=null;
+      const result=this._motionStep(u,target,dt);if(result==='arrived'&&navigationGoal)this._resolveNavigation(u,'arrived');return result;
+    }
+    const field=this.navigation.field(x,y,movement,footprint),at=Math.floor(u.y)*80+Math.floor(u.x);
+    if(field===undefined)return 'pending';
+    if(!field||field.distance[at]<0){if(navigationGoal)this._resolveNavigation(u,'unreachable');u.waypoint=null;return 'unreachable';}
     const key=`${field.key}:${field.version}`;
     if(u.navKey!==key){u.waypoint=null;u.navKey=key;}
-    if(!u.waypoint){if(field.distance[at]===0)u.waypoint={x:Math.floor(u.x)+.5,y:Math.floor(u.y)+.5};else{let best=field.distance[at],point=null;const xx=Math.floor(u.x),yy=Math.floor(u.y);for(const[dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=xx+dx,ny=yy+dy,nd=field.distance[ny*80+nx];if(this.navigation.walkable(nx,ny,d.movement)&&nd>=0&&nd<best){best=nd;point={x:nx+.5,y:ny+.5};}}u.waypoint=point;if(!point)return 'unreachable';}}
-    const target=u.waypoint,delta=Math.hypot(target.x-u.x,target.y-u.y);let speed=d.speed;if(d.movement==='water'&&this.state.teams[u.team].upgrades.navigation)speed*=1.25;const step=speed*dt;
-    if(delta>1e-7){if(record&&record.startedAt===null){record.startedAt=this.state.time;record.status='moving';}u.x+=(target.x-u.x)*Math.min(1,step/delta);u.y+=(target.y-u.y)*Math.min(1,step/delta);}
-    if(delta<=step+1e-7){u.x=target.x;u.y=target.y;u.waypoint=null;if(field.distance[Math.floor(u.y)*80+Math.floor(u.x)]===0){if(originalDestination&&['pending','moving'].includes(record.status)){record.status='arrived';record.resolvedAt=this.state.time;if(record.startedAt===null)record.startedAt=this.state.time;this.state.metrics.movementArrivals++;}return 'arrived';}}
+    if(!u.waypoint){
+      if(field.distance[at]===0)u.waypoint={x:Math.floor(u.x)+.5,y:Math.floor(u.y)+.5};
+      else{let best=field.distance[at];const xx=Math.floor(u.x),yy=Math.floor(u.y);for(const[dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=xx+dx,ny=yy+dy,nd=field.distance[ny*80+nx];if(this.navigation.walkable(nx,ny,movement)&&nd>=0&&nd<best){best=nd;u.waypoint={x:nx+.5,y:ny+.5};}}}
+      if(!u.waypoint){if(navigationGoal)this._resolveNavigation(u,'unreachable');return 'unreachable';}
+    }
+    const result=this._motionStep(u,u.waypoint,dt);
+    if(result==='blocked'){u.waypoint=null;return 'pending';}
+    if(result==='arrived'){u.waypoint=null;if(field.distance[Math.floor(u.y)*80+Math.floor(u.x)]===0){if(navigationGoal)this._resolveNavigation(u,'arrived');return 'arrived';}}
     return 'moving';
   }
   _dropoff(u,kind){
@@ -150,26 +249,67 @@ export class World {
       candidates=this.state.buildings.filter(b=>b.team===u.team&&b.progress===1&&b.hp>0&&(BUILDINGS[b.kind].dropoff||[]).includes(kind));
       groups?.set(key,candidates);
     }
-    let best,bestDistance=Infinity;
     const at=Math.floor(u.y)*80+Math.floor(u.x),movement=UNITS[u.kind].movement;
-    for(const b of candidates){
-      if(b.hp<=0||b.team!==u.team||b.progress!==1)continue;
-      const d=distance(b,u);
-      // Strict comparison preserves the original stable-sort tie order.
-      if(d>=bestDistance)continue;
+    // Probe nearest candidates first: unused farther fields must not consume the step's route budget.
+    const ordered=candidates.filter(b=>b.hp>0&&b.team===u.team&&b.progress===1).map(b=>({b,distance:distance(b,u)})).sort((a,b)=>a.distance-b.distance);
+    for(const {b}of ordered){
       const field=this.navigation.field(b.x,b.y,movement,b);
-      if(field&&field.distance[at]>=0){best=b;bestDistance=d;}
+      if(field&&field.distance[at]>=0)return b;
     }
-    return best;
+    return undefined;
   }
-  _gather(u,dt){const d=UNITS[u.kind],o=u.order;let n=this.getEntity(o.targetId);
-    if(o.phase==='deliver'||u.carry.amount>=(d.carryCapacity*(this.state.teams[u.team].upgrades.wheelbarrow?1.5:1))-.0001||(n?.amount<=0&&u.carry.amount>0)){
-      o.phase='deliver';const drop=this._dropoff(u,u.carry.kind);if(!drop){this._order(u,{type:'idle'});return;}const result=this._go(u,drop.x+BUILDINGS[drop.kind].size/2,drop.y+BUILDINGS[drop.kind].size/2,dt,drop);
-      if(result==='arrived'){const key=u.carry.kind==='fish'?'food':u.carry.kind;this.state.teams[u.team].resources[key]+=u.carry.amount;this.state.metrics.gathered+=u.carry.amount;this.state.metrics.gatherCycles++;this._participant('economy',u.id);u.carry={kind:null,amount:0};o.phase='gather';}else if(result==='unreachable')this._order(u,{type:'idle'});return;
+  _resourceAllowed(u,n){
+    if(!u||!n||!UNITS[u.kind]?.gatherRate||n.amount<=0||(n.team&&n.team!==u.team))return false;
+    if(u.kind==='fishing_boat'?n.kind!=='fish':n.kind==='fish')return false;
+    if(n.buildingId){const b=this.getEntity(n.buildingId);if(!b||b.hp<=0||b.progress<1||b.team!==u.team)return false;}
+    return [...RESOURCE_KEYS,'fish'].includes(n.kind);
+  }
+  _findResource(u,kind,excludeId=null){
+    if(!u||![...RESOURCE_KEYS,'fish'].includes(kind))return null;
+    const movement=UNITS[u.kind].movement,at=Math.floor(u.y)*80+Math.floor(u.x);
+    const candidates=this.state.nodes.filter(n=>n.id!==excludeId&&n.kind===kind&&this._resourceAllowed(u,n)).sort((a,b)=>distance(a,u)-distance(b,u));
+    for(const n of candidates){
+      const footprint=n.buildingId?this.getEntity(n.buildingId):null;
+      if(!footprint&&this.navigation.segmentClear(u.x,u.y,n.x,n.y,movement))return n;
+      const field=this.navigation.field(n.x,n.y,movement,footprint);
+      if(field&&field.distance[at]>=0)return n;
     }
-    if(!n||n.amount<=0){n=this.state.nodes.filter(e=>e.amount>0&&e.kind===(n?.kind||'wood')).sort((a,b)=>distance(a,u)-distance(b,u))[0];if(!n){this._order(u,{type:'idle'});return;}o.targetId=n.id;}
-    const result=this._go(u,n.x,n.y,dt,n.buildingId?this.getEntity(n.buildingId):null);if(result==='unreachable'){this._order(u,{type:'idle'});return;}if(result!=='arrived')return;
-    const t=this.state.teams[u.team],g=GUILDS.find(g=>g.id===t.guildId);const capacity=d.carryCapacity*(t.upgrades.wheelbarrow?1.5:1);const rate=d.gatherRate*(g.gatherBonus||1)*(t.upgrades.wheelbarrow?1.1:1)*(t.upgrades.agriculture?1.25:1);const amount=Math.min(n.amount,capacity-u.carry.amount,rate*dt);n.amount-=amount;u.carry.kind=n.kind;u.carry.amount+=amount;this._participant('economy',u.id);
+    return null;
+  }
+  _gather(u,dt){
+    const d=UNITS[u.kind],o=u.order,t=this.state.teams[u.team];let n=this.getEntity(o.targetId);
+    if(o.retryAt>this.state.time)return;
+    const resource=o.resource??n?.kind??u.carry.kind;
+    if(![...RESOURCE_KEYS,'fish'].includes(resource)){o.waiting='resource';o.retryAt=this.state.time+.5;return;}
+    o.resource=resource;
+    const capacity=d.carryCapacity*(t.upgrades.wheelbarrow?1.5:1),valid=this._resourceAllowed(u,n)&&n.kind===resource;
+    if(u.carry.amount>0&&(o.phase==='deliver'||u.carry.kind!==resource||u.carry.amount>=capacity-.0001||!valid)){
+      o.phase='deliver';const drop=this._dropoff(u,u.carry.kind);
+      if(!drop){o.waiting='dropoff';o.retryAt=this.state.time+.5;return;}
+      delete o.waiting;delete o.retryAt;
+      const result=this._go(u,drop.x+BUILDINGS[drop.kind].size/2,drop.y+BUILDINGS[drop.kind].size/2,dt,drop);
+      if(result==='arrived'){
+        const key=u.carry.kind==='fish'?'food':u.carry.kind;
+        t.resources[key]+=u.carry.amount;this.state.metrics.gathered+=u.carry.amount;this.state.metrics.gatherCycles++;
+        this._participant('economy',u.id);u.carry={kind:null,amount:0};o.phase='gather';
+      }else if(result==='unreachable'){o.waiting='dropoff';o.retryAt=this.state.time+.5;}
+      return;
+    }
+    o.phase='gather';
+    if(!valid){n=this._findResource(u,resource);if(!n){o.waiting='resource';o.retryAt=this.state.time+.5;return;}o.targetId=n.id;}
+    delete o.waiting;delete o.retryAt;
+    const result=this._go(u,n.x,n.y,dt,n.buildingId?this.getEntity(n.buildingId):null);
+    if(result==='unreachable'){
+      const alternate=this._findResource(u,resource,n.id);
+      if(alternate)o.targetId=alternate.id;
+      else if(u.carry.amount>0)o.phase='deliver';
+      else{o.waiting='resource';o.retryAt=this.state.time+.5;}
+      return;
+    }
+    if(result!=='arrived')return;
+    const g=GUILDS.find(g=>g.id===t.guildId),rate=d.gatherRate*(g.gatherBonus||1)*(t.upgrades.wheelbarrow?1.1:1)*(t.upgrades.agriculture?1.25:1);
+    const amount=Math.min(n.amount,capacity-u.carry.amount,rate*dt);
+    n.amount-=amount;u.carry.kind=n.kind;u.carry.amount+=amount;this._participant('economy',u.id);
   }
   _build(u,dt){const o=u.order;let b=this.getEntity(o.targetId);if(!b||b.hp<=0||b.progress>=1){const next=(o.chain||[]).map(id=>this.getEntity(id)).find(e=>e&&e.hp>0&&e.progress<1);if(next){o.targetId=next.id;b=next;}else{this._order(u,{type:'idle'});return;}}
     const r=this._go(u,b.x+BUILDINGS[b.kind].size/2,b.y+BUILDINGS[b.kind].size/2,dt,b);if(r==='unreachable'){this._order(u,{type:'idle'});return;}if(r!=='arrived')return;const amount=dt/BUILDINGS[b.kind].buildTime;const before=b.progress;b.progress=Math.min(1,b.progress+amount);b.hp=Math.min(b.maxHp,b.hp+(b.progress-before)*b.maxHp*.9);this.state.metrics.constructionProgress++;this._participant('builders',u.id);if(b.progress===1){this._stepDropoffs?.clear();b.hp=b.maxHp;this.state.metrics.constructionCompleted++;if(BUILDINGS[b.kind].farmFood)this._node('food',b.x+BUILDINGS[b.kind].size/2,b.y+BUILDINGS[b.kind].size/2,BUILDINGS[b.kind].farmFood,{buildingId:b.id,team:b.team});this._event(`${b.name} terminado`,'build');}}
@@ -190,11 +330,13 @@ export class World {
     if(d.projectile){this.state.projectiles.push({id:this._id('p'),kind:u.kind==='mage'?'fireball':u.kind==='siege_engine'?'stone':'arrow',team:u.team,sourceId:u.id,targetId:target.id,x:u.x,y:u.y,targetX:target.x,targetY:target.y,damage:attack,splash:d.splash||0,ttl:Math.max(.12,distance(u,target)/14)});this.state.metrics.projectiles++;}else this._damage(target,attack,u);return true;
   }
   _queues(dt){const summaries={1:this.summary(1),2:this.summary(2)};for(const b of this.state.buildings){if(b.hp<=0||b.progress<1||!b.queue.length)continue;const q=b.queue[0],s=summaries[b.team];if(q.type==='train'&&(s.population+s.reservedPopulation>s.capacity||s.population+s.reservedPopulation>1000)){b.queuePaused='housing';continue;}b.queuePaused=null;q.remaining-=dt;if(q.remaining>0)continue;
-      if(q.type==='train'){const u=this._spawn(q.kind,b.team,b.x+BUILDINGS[b.kind].size+.5,b.y+BUILDINGS[b.kind].size+.5);if(!u){q.remaining=0;b.queuePaused='exit';continue;}b.queue.shift();s.population++;s.reservedPopulation--;this.state.metrics.trained++;this._order(u,{type:'move',...b.rally});this._recordNavigation(u,b.rally.x,b.rally.y);}
+      if(q.type==='train'){const u=this._spawn(q.kind,b.team,b.x+BUILDINGS[b.kind].size+.5,b.y+BUILDINGS[b.kind].size+.5);if(!u){q.remaining=0;b.queuePaused='exit';continue;}b.queue.shift();s.population++;s.reservedPopulation--;this.state.metrics.trained++;
+        if(b.rally.targetId&&UNITS[u.kind].gatherRate&&(u.kind==='fishing_boat'?b.rally.resource==='fish':b.rally.resource!=='fish'))this._order(u,{type:'gather',targetId:b.rally.targetId,resource:b.rally.resource,phase:'gather'});
+        else{this._order(u,{type:'move',x:b.rally.x,y:b.rally.y});this._recordNavigation(u,b.rally.x,b.rally.y);}}
       else if(q.type==='research'){this.state.teams[b.team].upgrades[q.kind]=true;b.queue.shift();this._event(`${TECHNOLOGIES[q.kind].name} investigado`,'research');}
       else{this.state.teams[b.team].age=Number(q.kind);b.queue.shift();this._event(`Tu gremio alcanza la era ${q.kind}`,'age');}
     }}
-  _ai(dt){this.state.aiClock+=dt;if(this.state.aiClock<3)return;this.state.aiClock=0;const team=2,t=this.state.teams[team],resourceOffset=Math.floor(this._random()*4),workers=this.state.units.filter(u=>u.team===team&&u.kind==='villager'&&u.hp>0);for(let i=0;i<workers.length;i++){const u=workers[i];if(u.order.type==='idle'){const kind=RESOURCE_KEYS[(i+resourceOffset)%4];const node=this.state.nodes.filter(n=>n.kind===kind&&n.amount>0).sort((a,b)=>distance(a,u)-distance(b,u))[0];if(node){this._order(u,{type:'gather',targetId:node.id,phase:'gather'});this.state.metrics.aiGatherOrders++;}}}
+  _ai(dt){this.state.aiClock+=dt;if(this.state.aiClock<3)return;this.state.aiClock=0;const team=2,t=this.state.teams[team],resourceOffset=Math.floor(this._random()*4),workers=this.state.units.filter(u=>u.team===team&&u.kind==='villager'&&u.hp>0);for(let i=0;i<workers.length;i++){const u=workers[i];if(u.order.type==='idle'){const kind=RESOURCE_KEYS[(i+resourceOffset)%4];const node=this._findResource(u,kind);if(node){this._order(u,{type:'gather',targetId:node.id,resource:node.kind,phase:u.carry.amount>0?'deliver':'gather'});this.state.metrics.aiGatherOrders++;}}}
     const s=this.summary(team),hall=this.state.buildings.find(b=>b.team===team&&b.kind==='guildhall'&&b.hp>0);if(hall&&s.population+s.reservedPopulation<s.capacity&&workers.length<35)this._command('train',{buildingId:hall.id,kind:'villager'},team);
     if(workers.length&&t.resources.wood>=60&&!this.state.buildings.some(b=>b.team===team&&b.progress<1)){for(let y=57;y<76;y+=3){let made=false;for(let x=58;x<76;x+=3)if(this._plot('house',x,y)){const r=this._command('build',{unitIds:[workers[0].id],kind:'house',x,y},team);if(r.ok){this.state.metrics.aiBuildOrders++;made=true;}break;}if(made)break;}}
     if(this.state.mode==='peaceful')return;const producer=this.state.buildings.find(b=>b.team===team&&b.kind==='barracks'&&b.hp>0);if(producer&&producer.queue.length<3)this._command('train',{buildingId:producer.id,kind:'infantry'},team);
@@ -202,17 +344,21 @@ export class World {
   }
   _cleanup(){let changed=false;this.state.units=this.state.units.filter(u=>{if(u.hp>0)return true;this.state.effects.push({id:this._id('e'),kind:'death',x:u.x,y:u.y,ttl:1.2,entityKind:u.kind,team:u.team});if(u.navigationIndex!==null){const r=this.state.navigation[u.navigationIndex];if(r&&['pending','moving'].includes(r.status)){r.status='cancelled';r.resolvedAt=this.state.time;}}return false;});this.state.buildings=this.state.buildings.filter(b=>{if(b.hp>0)return true;this.state.effects.push({id:this._id('e'),kind:'rubble',x:b.x,y:b.y,ttl:8,entityKind:b.kind,team:b.team,size:BUILDINGS[b.kind].size});for(const q of b.queue)this._spend(b.team,q.cost,1);for(const n of this.state.nodes)if(n.buildingId===b.id)n.amount=0;changed=true;return false;});if(this.state.effects.length>3000)this.state.effects.splice(0,this.state.effects.length-3000);if(changed)this.navigation.rebuild();this._indexes();if(this.state.mode==='conquest'&&this.state.winner===null){const living=[1,2].filter(team=>this.state.buildings.some(b=>b.team===team&&b.kind==='guildhall'));if(living.length===1){this.state.winner=living[0];this._event(living[0]===1?'¡Victoria del Alba!':'Tu gremio ha sido derrotado',living[0]===1?'victory':'defeat');}}}
   tick(dtSeconds){if(!finite(dtSeconds)||dtSeconds<0||dtSeconds>2)throw new Error('Delta de simulación inválido');if(this.state.paused||this.state.winner!==null||dtSeconds===0)return;let left=dtSeconds*this.state.speed;while(left>1e-8){const dt=Math.min(.1,left);this._step(dt);left-=dt;}}
-  _step(dt){this._stepDropoffs=new Map();this.state.time+=dt;this.spatial.rebuild([...this.state.units,...this.state.buildings]);this._queues(dt);
+  _step(dt){this._stepDropoffs=new Map();this.state.time+=dt;this.navigation.beginStep(8);this.spatial.rebuild([...this.state.units,...this.state.buildings]);this._queues(dt);
+    this._motionGrid=null;
+    if(this.state.units.some(u=>u.hp>0&&u.order.type==='move'&&u.order.formation)){
+      this._motionGrid=new Map();for(const u of this.state.units)if(u.hp>0){const key=`${Math.floor(u.x*2)}:${Math.floor(u.y*2)}`;let bucket=this._motionGrid.get(key);if(!bucket)this._motionGrid.set(key,bucket=[]);bucket.push(u);}
+    }
     for(const u of this.state.units){if(u.hp<=0)continue;u.cooldown=Math.max(0,u.cooldown-dt);u.convertCooldown=Math.max(0,u.convertCooldown-dt);if(UNITS[u.kind].mana)u.mana=Math.min(UNITS[u.kind].mana,u.mana+dt*2);const o=u.order;
       const attackMoving=o.type==='move'&&o.attackMove;
-      if(o.type==='move'){const engaged=attackMoving&&this._combat(u,dt);if(!engaged){const r=this._go(u,o.x,o.y,dt);if(r==='arrived'||r==='unreachable')u.order={type:'idle'};}}
-      else if(o.type==='defend'&&finite(o.x)&&finite(o.y)&&Math.hypot(u.x-o.x,u.y-o.y)>.5)this._go(u,o.x,o.y,dt);
+      if(o.type==='move'){const engaged=attackMoving&&this._combat(u,dt);if(!engaged){const r=this._go(u,o.x,o.y,dt,null,true);if(r==='arrived'||r==='unreachable')u.order={type:'idle'};}}
+      else if(o.type==='defend'&&finite(o.x)&&finite(o.y)&&Math.hypot(u.x-o.x,u.y-o.y)>.5)this._go(u,o.x,o.y,dt,null,true);
       else if(o.type==='gather')this._gather(u,dt);else if(o.type==='build')this._build(u,dt);else if(o.type==='repair')this._repair(u,dt);
       if(!attackMoving)this._combat(u,dt);
     }
     for(const b of this.state.buildings){const d=BUILDINGS[b.kind];b.cooldown=Math.max(0,b.cooldown-dt);if(d.attack&&b.progress===1&&b.hp>0&&b.cooldown<=0&&this.state.mode!=='peaceful'){const target=this.spatial.nearest(b.x,b.y,d.range,e=>e.team!==b.team&&e.team&&e.hp>0);if(target){b.cooldown=d.cooldown;this.state.projectiles.push({id:this._id('p'),kind:'arrow',team:b.team,sourceId:b.id,targetId:target.id,x:b.x,y:b.y,targetX:target.x,targetY:target.y,damage:d.attack,splash:0,ttl:.3});this.state.metrics.projectiles++;}}}
     this.state.projectiles=this.state.projectiles.filter(p=>{p.ttl-=dt;if(p.ttl>0)return true;const target=this.getEntity(p.targetId),source=this.getEntity(p.sourceId);if(target&&target.hp>0){this._damage(target,p.damage,source);if(p.splash)for(const e of this.spatial.within(target.x,target.y,p.splash,e=>e.team!==p.team&&e.id!==target.id))this._damage(e,p.damage*.5,source);}return false;});
-    this.state.effects=this.state.effects.filter(e=>(e.ttl-=dt)>0);this._ai(dt);this._cleanup();this._stepDropoffs=null;
+    this.state.effects=this.state.effects.filter(e=>(e.ttl-=dt)>0);this._ai(dt);this._cleanup();this._stepDropoffs=null;this._motionGrid=null;this.navigation.endStep();
   }
   serialize(){return copy(this.state);}
   static fromSave(serialized){const s=validateSave(serialized);const world=Object.create(World.prototype);world.state=s;world._indexes();world.navigation=new Navigation(world);world.spatial=new SpatialIndex();world._sets=Object.fromEntries(['economy','builders','military'].map(k=>[k,new Set(s.metrics.participants[k])]));return world;}
@@ -225,6 +371,17 @@ function validateSave(input){
   const m=s.map;if(!m||m.width!==80||m.height!==80||!Array.isArray(m.terrain)||m.terrain.length!==6400||m.terrain.some(t=>!Number.isInteger(t)||!Object.values(TERRAIN).includes(t))||!Array.isArray(m.heights)||m.heights.length!==6400||m.heights.some(h=>!number(h,0,4)))bad();
   if(!s.teams||Object.keys(s.teams).join(',')!=='1,2')bad();for(const t of Object.values(s.teams))if(!t||!GUILDS.some(g=>g.id===t.guildId)||typeof t.name!=='string'||typeof t.color!=='string'||!price(t.resources)||!Number.isInteger(t.age)||t.age<1||t.age>4||!t.upgrades||Object.entries(t.upgrades).some(([id,v])=>!definition(TECHNOLOGIES,id)||v!==true))bad();
   if(!Array.isArray(s.units)||s.units.length>2000||!Array.isArray(s.buildings)||s.buildings.length>10000||!Array.isArray(s.nodes)||s.nodes.length>10000||!Array.isArray(s.projectiles)||s.projectiles.length>10000||!Array.isArray(s.effects)||s.effects.length>10000||!Array.isArray(s.events)||s.events.length>100||!Array.isArray(s.navigation)||s.navigation.length>100000)bad();
+  const navigationKeys=new Set();
+  for(const [key,limit]of [['navigationFields',128],['navigationQueue',2048]])if(key in s){
+    if(!Array.isArray(s[key])||s[key].length>limit)bad();const keys=new Set();
+    for(const entry of s[key]){
+      if(!position(entry)||entry.x%1!==.5||entry.y%1!==.5||!['land','water'].includes(entry.movement))bad();
+      const f=entry.footprint;
+      if(f!==null&&(!f||!definition(BUILDINGS,f.kind)||!Number.isInteger(f.x)||!Number.isInteger(f.y)||f.x<0||f.y<0||f.x+BUILDINGS[f.kind].size>80||f.y+BUILDINGS[f.kind].size>80))bad();
+      const id=f?`${entry.movement}:${f.x}:${f.y}:${BUILDINGS[f.kind].size}`:`${entry.movement}:${Math.floor(entry.x)}:${Math.floor(entry.y)}`;
+      if(keys.has(id)||navigationKeys.has(id))bad();keys.add(id);navigationKeys.add(id);
+    }
+  }
   const ids=new Set(),names=new Set();const entity=e=>{if(!e||typeof e.id!=='string'||!/^[ubn][1-9]\d*$/u.test(e.id)||ids.has(e.id)||Number(e.id.slice(1))>=s.nextId||!position(e))bad();ids.add(e.id);};
   for(const u of s.units){entity(u);const d=definition(UNITS,u.kind);if(!d||![1,2].includes(u.team)||!number(u.hp,.00001,d.hp)||u.maxHp!==d.hp||typeof u.name!=='string'||!u.name.trim()||u.name.length>48||/[\u0000-\u001f\u007f]/u.test(u.name)||names.has(norm(u.name))||!u.order||!ORDER_TYPES.has(u.order.type)||!u.carry||!number(u.carry.amount,0,(d.carryCapacity||0)*1.5)||!(u.carry.kind===null||['wood','food','gold','stone','fish'].includes(u.carry.kind))||(u.carry.amount>0&&u.carry.kind===null)||!number(u.cooldown,0,20)||!number(u.mana,0,d.mana||0)||!number(u.convertCooldown,0,100)||!number(u.scanCooldown,-1,10))bad();names.add(norm(u.name));for(const k of ['x','y'])if(k in u.order&&!number(u.order[k],0,79.99999))bad();if('targetId'in u.order&&(typeof u.order.targetId!=='string'||!/^[ubn][1-9]\d*$/u.test(u.order.targetId)||Number(u.order.targetId.slice(1))>=s.nextId))bad();if(['build','repair'].includes(u.order.type)&&!/^b/u.test(u.order.targetId))bad();if(u.order.type==='gather'&&!/^n/u.test(u.order.targetId))bad();if(u.order.type==='convert'&&!/^u/u.test(u.order.targetId))bad();if(u.order.type==='attack'&&!/^[ub]/u.test(u.order.targetId))bad();if(['move','defend'].includes(u.order.type)&&!position(u.order))bad();if(['gather','build','repair','attack','convert'].includes(u.order.type)&&typeof u.order.targetId!=='string')bad();if('remainingRepairWood'in u.order&&!number(u.order.remainingRepairWood,0,1e6))bad();if('chain'in u.order&&(!Array.isArray(u.order.chain)||u.order.chain.length>100||u.order.chain.some(id=>typeof id!=='string')))bad();if('phase'in u.order&&!['deliver','gather'].includes(u.order.phase))bad();if('conversion'in u.order&&!number(u.order.conversion,0,20))bad();if('attackMove'in u.order&&typeof u.order.attackMove!=='boolean')bad();if(u.waypoint!==null&&!position(u.waypoint))bad();if(u.navigationIndex!==null&&(!Number.isInteger(u.navigationIndex)||!s.navigation[u.navigationIndex]||s.navigation[u.navigationIndex].unitId!==u.id))bad();}
   for(const b of s.buildings){entity(b);const d=definition(BUILDINGS,b.kind);if(!d||![1,2].includes(b.team)||!Number.isInteger(b.x)||!Number.isInteger(b.y)||b.x+d.size>80||b.y+d.size>80||!number(b.hp,.00001,d.hp)||b.maxHp!==d.hp||!number(b.progress,0,1)||!Array.isArray(b.queue)||b.queue.length>100||!position(b.rally)||typeof b.open!=='boolean'||!number(b.cooldown,0,20))bad();for(const q of b.queue){let expected,duration;if(q.type==='train'){const ud=definition(UNITS,q.kind);if(!ud||!d.trains?.includes(q.kind)||ud.age>s.teams[b.team].age)bad();expected=ud.cost;duration=ud.trainTime;}else if(q.type==='research'){const td=definition(TECHNOLOGIES,q.kind);if(!td||td.producer!==b.kind||td.age>s.teams[b.team].age||td.prerequisites.some(id=>!s.teams[b.team].upgrades[id]))bad();expected=td.cost;duration=td.time;}else if(q.type==='age'){if(b.kind!=='guildhall'||!['2','3','4'].includes(q.kind)||Number(q.kind)!==s.teams[b.team].age+1)bad();expected=AGE_COSTS[Number(q.kind)];duration=20;}else bad();if(!price(q.cost)||RESOURCE_KEYS.some(k=>q.cost[k]!==expected[k])||q.duration!==duration||!number(q.remaining,0,duration))bad();}}
@@ -233,13 +390,28 @@ function validateSave(input){
   const targets=new Map([...s.units,...s.buildings,...s.nodes].map(e=>[e.id,e]));
   for(const u of s.units){
     const order=u.order,target=targets.get(order.targetId),d=UNITS[u.kind];
-    if(order.type==='gather'&&(!d.gatherRate||(target&&(u.kind==='fishing_boat'?target.kind!=='fish':target.kind==='fish'))))bad();
+    if('formation'in u&&!FORMATIONS.includes(u.formation))bad();
+    if('formation'in order){
+      if(order.type!=='move'||!FORMATIONS.includes(order.formation)||!number(order.anchorX,0,79.99999)||!number(order.anchorY,0,79.99999)||!number(order.marchSpeed,.01,d.speed))bad();
+      if(!Array.isArray(order.route)||order.route.length>512||order.route.some(cell=>!Number.isInteger(cell)||cell<0||cell>=6400)||!Number.isInteger(order.routeCursor)||order.routeCursor<0||order.routeCursor>order.route.length||!Number.isInteger(order.routeVersion)||order.routeVersion< -1||order.routeVersion>s.navigationVersion)bad();
+      if(order.route.length&&order.routeVersion<0)bad();
+      for(let i=1;i<order.route.length;i++){const a=order.route[i-1],b=order.route[i];if(Math.abs(a%80-b%80)+Math.abs(Math.floor(a/80)-Math.floor(b/80))!==1)bad();}
+    }else if(['anchorX','anchorY','marchSpeed','route','routeCursor','routeVersion'].some(key=>key in order))bad();
+    if('resource'in order&&(order.type!=='gather'||![...RESOURCE_KEYS,'fish'].includes(order.resource)||(u.kind==='fishing_boat'?order.resource!=='fish':order.resource==='fish')))bad();
+    if('waiting'in order&&(order.type!=='gather'||!['dropoff','resource'].includes(order.waiting)))bad();
+    if('retryAt'in order&&(order.type!=='gather'||!number(order.retryAt,0,s.time+2)))bad();
+    if(u.carry.amount>0&&(u.kind==='fishing_boat'?u.carry.kind!=='fish':u.carry.kind==='fish'))bad();
+    if(order.type==='gather'&&(!d.gatherRate||(target&&((u.kind==='fishing_boat'?target.kind!=='fish':target.kind==='fish')||(target.team&&target.team!==u.team)))))bad();
     if(['build','repair'].includes(order.type)){
       if(u.kind!=='villager'||(target&&(!definition(BUILDINGS,target.kind)||target.team!==u.team)))bad();
       for(const id of order.chain||[]){const next=targets.get(id);if(!/^b[1-9]\d*$/u.test(id)||Number(id.slice(1))>=s.nextId||(next&&(!definition(BUILDINGS,next.kind)||next.team!==u.team)))bad();}
     }
     if(order.type==='convert'&&u.kind!=='wizard')bad();
   }
+  for(const b of s.buildings)if('targetId'in b.rally){
+    const r=b.rally,target=targets.get(r.targetId);
+    if(typeof r.targetId!=='string'||!/^n[1-9]\d*$/u.test(r.targetId)||Number(r.targetId.slice(1))>=s.nextId||![...RESOURCE_KEYS,'fish'].includes(r.resource)||(target&&(target.kind!==r.resource||(target.team&&target.team!==b.team))))bad();
+  }else if('resource'in b.rally)bad();
   for(const p of s.projectiles)if(!p||!position(p)||!number(p.damage,0,1e5)||!number(p.ttl,0,30)||![1,2].includes(p.team)||typeof p.targetId!=='string'||typeof p.sourceId!=='string'||!number(p.splash,0,10)||!number(p.targetX,0,79.99999)||!number(p.targetY,0,79.99999))bad();
   for(const e of s.effects)if(!position(e)||!number(e.ttl,0,30)||typeof e.kind!=='string')bad();for(const e of s.events)if(!e||!number(e.time)||typeof e.text!=='string'||e.text.length>1000||typeof e.kind!=='string')bad();
   for(const n of s.navigation)if(!n||typeof n.unitId!=='string'||![1,2].includes(n.team)||!position(n)||!number(n.commandedAt,0,s.time)||!(n.startedAt===null||number(n.startedAt,n.commandedAt,s.time))||!(n.resolvedAt===null||number(n.resolvedAt,n.commandedAt,s.time))||!['pending','moving','arrived','unreachable','cancelled'].includes(n.status))bad();
