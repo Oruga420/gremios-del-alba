@@ -5,14 +5,16 @@ const SESSION_MS = 28_800_000;
 const HARD_CAP_MS = 300_000;
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-// Only deploy with Vercel Authentication enabled for ALL deployments. These
-// small in-memory issuance/lease limits are per instance, not a billing ledger.
+// Standard Vercel Protection leaves the production domain public and protects
+// immutable deployment URLs. Paid voice is issued only on that private host.
+// In-memory issuance/lease limits are per instance, not a billing ledger.
 export function createCloudHandler({ environment = process.env, fetcher = fetch, now = Date.now, maxGrants = 20 } = {}) {
   const grants = [], leases = new Map();
   const origin = environment.GUILD_PUBLIC_ORIGIN || '';
   const secret = environment.GUILD_SESSION_SECRET || '';
-  const protectedConfig = /^https:\/\/[^/]+$/u.test(origin) && secret.length >= 32 && environment.GUILD_DEPLOYMENT_PROTECTION === 'vercel-auth';
-  const configured = protectedConfig && Boolean(environment.ELEVENLABS_API_KEY?.trim()) && /^[a-zA-Z0-9_-]{5,160}$/u.test(environment.ELEVENLABS_AGENT_ID || '');
+  const sessionConfigured = /^https:\/\/[^/]+$/u.test(origin) && secret.length >= 32;
+  const privateOrigin = /^[a-zA-Z0-9.-]+$/u.test(environment.VERCEL_URL || '') ? `https://${environment.VERCEL_URL}` : null;
+  const personalConfigured = environment.GUILD_DEPLOYMENT_PROTECTION === 'vercel-auth' && Boolean(environment.ELEVENLABS_API_KEY?.trim()) && /^[a-zA-Z0-9_-]{5,160}$/u.test(environment.ELEVENLABS_AGENT_ID || '');
   const sign = (value) => createHmac('sha256', secret).update(value).digest('hex');
   const csrf = (cookie) => sign(`csrf:${cookie}`);
   const getSession = (req) => {
@@ -35,13 +37,17 @@ export function createCloudHandler({ environment = process.env, fetcher = fetch,
       res.end(JSON.stringify(value));
     };
     try {
-      if (!protectedConfig) return reply(503, { ok: false, configured: false, code: 'PROTECTED_DEPLOYMENT_REQUIRED' });
-      if (req.headers.host !== new URL(origin).host || req.headers.origin && req.headers.origin !== origin || req.headers['sec-fetch-site'] === 'cross-site') return reply(403, { ok: false, code: 'ORIGIN_REJECTED' });
-      const url = new URL(req.url, origin);
+      if (!sessionConfigured) return reply(503, { ok: false, configured: false, code: 'SESSION_NOT_CONFIGURED' });
+      const requestOrigin = `https://${req.headers.host}`;
+      if (![origin, privateOrigin].includes(requestOrigin) || req.headers.origin && req.headers.origin !== requestOrigin || req.headers['sec-fetch-site'] === 'cross-site') return reply(403, { ok: false, code: 'ORIGIN_REJECTED' });
+      const privateVoice = requestOrigin === privateOrigin && requestOrigin !== origin;
+      const configured = personalConfigured && privateVoice;
+      const voiceCode = !privateVoice ? 'PERSONAL_VOICE_PRIVATE' : 'PERSONAL_AGENT_NOT_CONFIGURED';
+      const url = new URL(req.url, requestOrigin);
       const route = url.searchParams.get('route') || url.pathname.replace(/^\/api\//u, '');
       if (req.method === 'GET') {
         if (route === 'health') return reply(200, { ok: true, project: 'gremios-del-alba', runtime: 'vercel', revision: environment.VERCEL_GIT_COMMIT_SHA || null });
-        if (route === 'voice/status') return reply(200, { ok: true, configured, code: configured ? 'PERSONAL_AGENT_CONFIGURED_UNPROVEN' : 'PERSONAL_AGENT_NOT_CONFIGURED', liveVerified: false });
+        if (route === 'voice/status') return reply(200, { ok: true, configured, code: configured ? 'PERSONAL_AGENT_CONFIGURED_UNPROVEN' : voiceCode, liveVerified: false });
         if (route === 'speech/status') return reply(200, { ok: true, ready: false, state: 'unavailable', code: 'BROWSER_SPEECH_AVAILABLE', message: 'En este despliegue usa Voz del navegador o llama a Sota.' });
         if (route === 'session') {
           const value = getSession(req) || (() => { const payload = `${randomBytes(24).toString('hex')}.${now() + SESSION_MS}`; return `${payload}.${sign(payload)}`; })();
@@ -51,7 +57,7 @@ export function createCloudHandler({ environment = process.env, fetcher = fetch,
       if (req.method !== 'POST' || !['voice/token', 'voice/release', 'speech'].includes(route)) return reply(404, { ok: false, code: 'NOT_FOUND' });
       const session = getSession(req);
       if (!session) return reply(401, { ok: false, code: 'SESSION_REQUIRED' });
-      if (req.headers.origin !== origin || !equal(req.headers['x-guild-csrf'], csrf(session))) return reply(403, { ok: false, code: 'CSRF_REJECTED' });
+      if (req.headers.origin !== requestOrigin || !equal(req.headers['x-guild-csrf'], csrf(session))) return reply(403, { ok: false, code: 'CSRF_REJECTED' });
       if (route === 'speech') return reply(503, { ok: false, code: 'LOCAL_ASR_UNAVAILABLE', message: 'Usa Voz del navegador o llama a Sota.' });
       if (String(req.headers['content-type'] || '').split(';')[0] !== 'application/json') return reply(415, { ok: false, code: 'JSON_REQUIRED' });
       const input = body(req);
@@ -59,7 +65,7 @@ export function createCloudHandler({ environment = process.env, fetcher = fetch,
         if (leases.get(input.leaseId)?.session === session) leases.delete(input.leaseId);
         return reply(200, { ok: true });
       }
-      if (!configured) return reply(503, { ok: false, code: 'PERSONAL_AGENT_NOT_CONFIGURED' });
+      if (!configured) return reply(503, { ok: false, code: voiceCode });
       while (grants.length && grants[0] <= now() - 600_000) grants.shift();
       for (const [id, lease] of leases) if (lease.expires <= now()) leases.delete(id);
       if (grants.length >= maxGrants) return reply(429, { ok: false, code: 'GRANT_LIMIT' }, { 'Retry-After': '600' });

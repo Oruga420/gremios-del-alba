@@ -98,21 +98,25 @@ Importa este repositorio con Node 24 y conserva `vercel.json`. El cliente se
 compila en `dist/`; las rutas `/api/*` se ejecutan como una función Node sin
 dependencias adicionales. Las partidas se guardan en tu navegador o se exportan
 a JSON. El reconocimiento offline de Vosk queda disponible en la versión local;
-en Vercel usa Voz del navegador o llama a Sota.
+en el enlace público de Vercel usa Voz del navegador o escribe órdenes.
 
-Antes de configurar tu agente de pago, activa **Vercel Authentication → All
-Deployments** en el proyecto. El despliegue del propietario requiere iniciar
-sesión en Vercel; el repositorio continúa público. Define como variables de
+Activa **Vercel Authentication → Standard Protection** en el proyecto. El
+dominio de producción permite jugar sin iniciar sesión. Las direcciones únicas
+de despliegue permanecen privadas: Sota personal solo emite autorizaciones desde
+el host protegido que Vercel entrega en `VERCEL_URL`. La voz del navegador y
+las órdenes escritas están disponibles en el juego público. Define como variables de
 producción cifradas `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`,
 `GUILD_PUBLIC_ORIGIN` (el origen HTTPS exacto), `GUILD_SESSION_SECRET` (aleatoria,
 32 caracteres como mínimo) y `GUILD_DEPLOYMENT_PROTECTION=vercel-auth`.
 No incluyas sus valores en GitHub. El indicador declara la protección configurada;
-no sustituye el control de acceso de Vercel.
+no sustituye el control de acceso de Vercel. No desactives la protección de las
+direcciones únicas si habilitas el agente de pago. El dominio público nunca
+emite autorizaciones de ElevenLabs, aunque tenga una sesión y un CSRF válidos.
 
 La sesión y CSRF usan una cookie firmada, HttpOnly, Secure y SameSite. Los
 límites de emisión y de llamadas simultáneas son por instancia de la función;
 no equivalen a una cuota global ni a un límite de facturación. Mantén protegido
-el despliegue y configura los límites de uso en tu proveedor. La llamada del
+el acceso privado y configura los límites de uso en tu proveedor. La llamada del
 cliente termina a los cinco minutos o tras 90 segundos de inactividad.
 
 Hay dos benchmarks opcionales de 120 segundos cada uno. Ejecútalos por

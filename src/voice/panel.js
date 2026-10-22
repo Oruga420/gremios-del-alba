@@ -75,9 +75,10 @@ export function mountVoicePanel({ mount, onCommand, onMic, onAgent, onEnd, onCon
     setLocalReady(value) { const option = get('recognizer').querySelector('[value="local"]'); option.disabled = !value.ready; option.textContent = value.ready ? 'Local · Español sin nube' : value.state === 'starting' ? 'Local · Preparando' : 'Local · No disponible'; if (!microphoneActive && !userSelectedMode) { if (value.ready) get('recognizer').value = 'local'; else if (get('recognizer').value === 'local') get('recognizer').value = 'browser'; } },
     setAgentAvailability(value) {
       agentConfigured = value.configured === true;
-      const explanation = agentConfigured ? 'Sota está disponible.' : value.code === 'PERSONAL_AGENT_NOT_CONFIGURED' ? 'Sota todavía no está configurado. Puedes escribir una orden.' : 'Sota no está disponible ahora. Puedes escribir una orden.';
+      const explanation = agentConfigured ? 'Sota está disponible.' : value.code === 'PERSONAL_VOICE_PRIVATE' ? 'Sota personal está en el acceso privado. Usa Voz del navegador o escribe una orden.' : value.code === 'PERSONAL_AGENT_NOT_CONFIGURED' ? 'Sota todavía no está configurado. Puedes escribir una orden.' : 'Sota no está disponible ahora. Puedes escribir una orden.';
       availability.textContent = explanation;
       get('agent').title = explanation;
+      if (value.code === 'PERSONAL_VOICE_PRIVATE') panel.querySelector('.guild-voice-local').open = true;
       renderCallControls();
     },
     setStatus(value) {

@@ -46,6 +46,18 @@ test('launcher starts on the original trusted gesture; a repeated launcher only 
   h.voice.close(); assert.equal(h.panel.panel.hidden, true); assert.equal(h.ended, 1);
 });
 
+test('public launcher opens controls without attempting the private paid conversation', async t => {
+  const h = harness(t);
+  h.voice.status.elevenlabs = { configured: false, code: 'PERSONAL_VOICE_PRIVATE' };
+  assert.equal((await h.voice.toggle({ isTrusted: true })).code, 'VOICE_PANEL_OPEN');
+  assert.equal(h.panel.panel.hidden, false);
+  assert.equal(h.sdkStarts, 0);
+  h.handlers.onCommand('estado', { source: 'typed' });
+  assert.equal(h.executions, 1);
+  const event = { isTrusted: true }; h.handlers.onMic(event, 'es-MX', 'browser');
+  assert.equal(h.starts.at(-1), event);
+});
+
 test('call form talks to the conversation and executes tools once; disconnected form keeps the local fallback', async t => {
   const h = harness(t);
   h.handlers.onCommand('estado', { source: 'typed' }); assert.equal(h.parsed, 1); assert.equal(h.executions, 1);

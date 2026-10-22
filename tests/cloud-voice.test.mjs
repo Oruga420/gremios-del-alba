@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createCloudHandler } from '../server/cloud-voice.mjs';
 
 const origin = 'https://guild.example';
-const environment = { GUILD_PUBLIC_ORIGIN: origin, GUILD_SESSION_SECRET: 'test-only-session-secret-01234567890123456789', GUILD_DEPLOYMENT_PROTECTION: 'vercel-auth', ELEVENLABS_API_KEY: 'test-only-private-key', ELEVENLABS_AGENT_ID: 'test_agent' };
+const publicOrigin = 'https://play.example';
+const environment = { GUILD_PUBLIC_ORIGIN: publicOrigin, VERCEL_URL: 'guild.example', GUILD_SESSION_SECRET: 'test-only-session-secret-01234567890123456789', GUILD_DEPLOYMENT_PROTECTION: 'vercel-auth', ELEVENLABS_API_KEY: 'test-only-private-key', ELEVENLABS_AGENT_ID: 'test_agent' };
 function request(handler, route, options = {}) {
   const headers = { host: 'guild.example', ...options.headers };
   if (options.method === 'POST') Object.assign(headers, { origin, 'content-type': 'application/json', ...options.headers });
@@ -25,7 +26,30 @@ test('cloud voice fails closed without protected deployment configuration', asyn
   const handler = make({ environment: { ...environment, GUILD_DEPLOYMENT_PROTECTION: '' }, fetcher: async () => calls++ });
   const result = await request(handler, 'voice/status');
   assert.equal(result.body.configured, false);
-  assert.equal((await request(handler, 'session')).status, 503);
+  const headers = await session(handler);
+  assert.equal((await request(handler, 'voice/token', { method: 'POST', headers })).status, 503);
+  assert.equal(calls, 0);
+});
+
+test('public game supports health, sessions and browser speech without exposing paid voice', async () => {
+  let calls = 0; const handler = make({ fetcher: async () => calls++ });
+  const publicHeaders = { host: 'play.example' };
+  assert.equal((await request(handler, 'health', { headers: publicHeaders })).status, 200);
+  assert.equal((await request(handler, 'speech/status', { headers: publicHeaders })).body.ready, false);
+  const status = await request(handler, 'voice/status', { headers: publicHeaders });
+  assert.equal(status.body.configured, false); assert.equal(status.body.code, 'PERSONAL_VOICE_PRIVATE');
+  const value = await request(handler, 'session', { headers: publicHeaders });
+  assert.equal(value.status, 200);
+  const headers = { ...publicHeaders, origin: publicOrigin, cookie: value.headers['Set-Cookie'].split(';')[0], 'x-guild-csrf': value.body.csrf, 'x-forwarded-host': 'guild.example' };
+  const token = await request(handler, 'voice/token', { method: 'POST', headers });
+  assert.equal(token.status, 503); assert.equal(token.body.code, 'PERSONAL_VOICE_PRIVATE');
+  assert.equal(calls, 0);
+});
+
+test('public origin cannot become a paid voice origin through a misconfigured deployment URL', async () => {
+  let calls = 0; const handler = make({ environment: { ...environment, VERCEL_URL: 'play.example' }, fetcher: async () => calls++ });
+  const result = await request(handler, 'voice/status', { headers: { host: 'play.example' } });
+  assert.equal(result.body.configured, false);
   assert.equal(calls, 0);
 });
 test('cloud health and speech expose no credentials, paths or false local availability', async () => {

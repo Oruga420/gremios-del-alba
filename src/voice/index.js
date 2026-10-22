@@ -50,6 +50,7 @@ export function initializeVoice(game) {
   function startCall(event) {
     panel.visible(true);
     if (destroyed) return { ok: false, code: 'DISCONNECTED' };
+    if (status.elevenlabs.code === 'PERSONAL_VOICE_PRIVATE') return { ok: true, code: 'VOICE_PANEL_OPEN' };
     if (agent.engaged) return { ok: true, code: 'CALL_OPEN' };
     endVoice('mode-changed');
     return agent.start(event);
