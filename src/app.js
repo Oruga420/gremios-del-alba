@@ -3,7 +3,7 @@ import { MAPS, GUILDS, UNITS, BUILDINGS, TECHNOLOGIES, AGE_COSTS } from './game/
 import { GameRenderer, drawMenuLandscape } from './game/renderer.js';
 import { createRenderGate } from './game/render-gate.js';
 import { installAudio } from './audio/index.js';
-import { t, getLocale, onLocaleChange, applyDocumentLocale, mountLanguageSelects, formatNumber, localize } from './i18n/index.js';
+import { t, getLocale, onLocaleChange, applyDocumentLocale, mountLanguageSelects, formatNumber, localize, localeInfo } from './i18n/index.js';
 import { unitName, buildingName, techName, resourceName, resourceShort, guildText, mapText, kindName, entityName } from './i18n/names.js';
 
 const $ = selector => document.querySelector(selector);
@@ -13,7 +13,11 @@ const number = value => formatNumber(value);
 const numeral = age => ['','I','II','III','IV'][Number(age)] ?? '';
 const upper = text => String(text ?? '').toLocaleUpperCase(getLocale());
 const lower = text => String(text ?? '').toLocaleLowerCase(getLocale());
-const costText = cost => Object.entries(cost || {}).filter(([,n])=>n).map(([key,value])=>t('app.common.cost',{amount:number(value),resource:resourceShort(key)})).join(' · ');
+const costParts = cost => Object.entries(cost || {}).filter(([,n])=>n).map(([key,value])=>t('app.common.cost',{amount:number(value),resource:resourceShort(key)}));
+const costText = cost => costParts(cost).join(' · ');
+// Same text as costText, but each "amount resource" stays together so a long cost wraps between items, never inside one.
+const costMarkup = cost => costParts(cost).map((part,index,all)=>`<span>${escapeHTML(part)}${index<all.length-1?' ·':''}</span>`).join(' ');
+const decimal = value => { try { return new Intl.NumberFormat(localeInfo().number,{maximumFractionDigits:1}).format(value); } catch { return String(value); } };
 const RESOURCE_KINDS = new Set(['wood','food','gold','stone','fish']);
 const isResourceKind = kind => RESOURCE_KINDS.has(kind);
 const ORDER_TYPES = new Set(['idle','move','gather','build','repair','attack','attack_move','defend','cast','convert','return','deposit']);
@@ -123,6 +127,12 @@ function execute(type,args={}) {
   return result;
 }
 function invalidateHUD(){renderRevision++;selectionSignature='';catalogSignature='';panelSignature='';}
+// The "›" cue only shows while the catalog can still scroll further (scrollLeft is negative in RTL).
+function updateCatalogCue(){
+  const catalog=$('#action-catalog'),cue=$('.catalog-scroll-cue');if(!catalog||!cue)return;
+  const room=catalog.scrollWidth-catalog.clientWidth;
+  cue.hidden=room<=1||Math.abs(catalog.scrollLeft)>=room-1;
+}
 function announce(message,error=false){
   if(!message)return;
   $('#screen-reader-status').textContent=message;
@@ -219,7 +229,7 @@ function refreshHUD(){
   if(signature!==selectionSignature){selectionSignature=signature;renderSelection(entities,summary);}
   updateSelectionProgress(entities);
   const catalogKey=JSON.stringify([selectedIds,currentTab,summary.age,summary.resources,world.state.teams?.[1]?.upgrades,first?.queue?.map(queueKey),first?.progress>=1,placement?.kind]);
-  if(catalogKey!==catalogSignature){catalogSignature=catalogKey;renderCatalog(entities,summary);}
+  if(catalogKey!==catalogSignature){catalogSignature=catalogKey;renderCatalog(entities,summary);updateCatalogCue();}
   $('#selection-orders').textContent=placement?t('app.hud.orders.placing',{building:buildingName(placement.kind)}):first?(UNITS[first.kind]?t(entities.length>1?'app.hud.orders.unit.other':'app.hud.orders.unit.one',{count:entities.length,status:orderStatus(first),formation:formationName(formationFor())}):BUILDINGS[first.kind]?t('app.hud.orders.building',{rally:rallyStatus(first)}):t('app.hud.orders.resource',{resource:isResourceKind(first.kind)?resourceName(first.kind):first.kind})):t('app.hud.orders.empty');
   if(currentPanel==='roster')updateRoster();
   if(world.state.winner!==null&&world.state.winner!==undefined&&!winnerShown)showWinner();
@@ -245,7 +255,7 @@ function renderSelection(entities,summary){
   const percent=value=>t('app.common.percent',{value:Math.round(value*100)});
   panel.innerHTML=`<div class="selected-identity"><div class="entity-portrait">${portrait(entity)}</div><div class="selected-name"><small>${escapeHTML(t('app.selection.identity',{team:t(own?'app.selection.team.own':'app.selection.team.rival'),type:t(isUnit?'app.selection.type.unit':'app.selection.type.building')}))}</small><h3 title="${escapeHTML(title)}">${escapeHTML(title)}</h3><span>${escapeHTML(entities.length>1?t('app.selection.multiple'):kindName(entity.kind))}</span>${isUnit&&own&&entities.length===1?`<br><button class="rename-mini" data-action="rename" data-unit-id="${entity.id}">${escapeHTML(t('app.selection.rename'))}</button>`:''}</div></div>
     <div class="health-row"><div class="health-track"><i style="width:${Math.max(0,entity.hp/entity.maxHp*100)}%"></i></div><span>${number(entity.hp)} / ${number(entity.maxHp)}</span></div>
-    <div class="entity-stats"><span>${escapeHTML(t(isUnit?'app.selection.stat.attack':'app.selection.stat.state'))} <b>${isUnit?definition.attack||0:entity.progress<1?escapeHTML(percent(entity.progress)):escapeHTML(t('app.selection.stat.ready'))}</b></span><span>${escapeHTML(t(isUnit?'app.selection.stat.armor':'app.selection.stat.age'))} <b>${isUnit?definition.armor||0:definition.age}</b></span>${isUnit?`<span>${escapeHTML(t('app.selection.stat.range'))} <b>${definition.range||1}</b></span>`:''}</div>
+    <div class="entity-stats"><span>${escapeHTML(t(isUnit?'app.selection.stat.attack':'app.selection.stat.state'))} <b>${isUnit?definition.attack||0:entity.progress<1?escapeHTML(percent(entity.progress)):escapeHTML(t('app.selection.stat.ready'))}</b></span><span>${escapeHTML(t(isUnit?'app.selection.stat.armor':'app.selection.stat.age'))} <b>${isUnit?definition.armor||0:definition.age}</b></span>${isUnit?`<span>${escapeHTML(t('app.selection.stat.range'))} <b>${escapeHTML(decimal(definition.range||1))}</b></span>`:''}</div>
     ${own&&isUnit?`<div class="unit-orders"><button data-action="attack-move" title="${escapeHTML(t('app.selection.button.attackTitle'))}">${icon('sword')}${escapeHTML(t('app.selection.button.attack'))}</button><button data-action="stop" title="${escapeHTML(t('app.selection.button.stopTitle'))}">${icon('pause')}${escapeHTML(t('app.selection.button.stop'))}</button><button data-action="defend" title="${escapeHTML(t('app.selection.button.defendTitle'))}">${icon('shield')}${escapeHTML(t('app.selection.button.defend'))}</button></div>`:''}
     ${own&&isUnit?`<div class="formation-controls" role="group" aria-label="${escapeHTML(t('app.formation.groupLabel'))}">${FORMATIONS.map(kind=>`<button type="button" data-action="formation" data-formation="${kind}" aria-pressed="${formationFor()===kind}" title="${escapeHTML(t(`app.formation.regroup.${kind}`))}"><span class="formation-mark ${kind}" aria-hidden="true">${'<i></i>'.repeat(6)}</span>${escapeHTML(formationName(kind))}</button>`).join('')}</div><div class="unit-activity"><span class="order-status">${escapeHTML(order)}</span><span class="cargo-status">${escapeHTML(cargoStatus(entities))}</span></div>`:''}
     ${own&&!isUnit&&definition.trains?.length?`<div class="rally-status">${escapeHTML(rallyStatus(entity))}<small>${escapeHTML(t('app.selection.rallyHelp'))}</small></div>`:''}
@@ -282,7 +292,7 @@ function updateSelectionProgress(entities){
 function actionCard({action,kind,label,cost,age,disabled=false,active=false,iconName='home',buildingId='',technologyId='',extra=''}){
   const type=UNITS[kind]?'units':'buildings',record=renderer.atlas[type]?.[kind];
   const thumb=record&&renderer.images.has(record.image)?spritePreview(record):icon(iconName);
-  return `<button type="button" class="action-card${disabled?' locked':''}${active?' active':''}" data-action="${action}" data-kind="${kind||''}" data-building-id="${buildingId}" data-technology-id="${technologyId}" ${disabled?'aria-disabled="true"':''} title="${escapeHTML(`${label}${cost?` · ${costText(cost)}`:''}${age?` · ${t('app.common.ageNumber',{age})}`:''}${extra?` · ${extra}`:''}`)}"><span class="action-thumb">${thumb}</span><strong>${escapeHTML(label)}</strong><small>${escapeHTML(costText(cost)||extra||'')}</small>${age>1?`<span class="age-tag">${numeral(age)}</span>`:''}</button>`;
+  return `<button type="button" class="action-card${disabled?' locked':''}${active?' active':''}" data-action="${action}" data-kind="${kind||''}" data-building-id="${buildingId}" data-technology-id="${technologyId}" ${disabled?'aria-disabled="true"':''} title="${escapeHTML(`${label}${cost?` · ${costText(cost)}`:''}${age?` · ${t('app.common.ageNumber',{age})}`:''}${extra?` · ${extra}`:''}`)}"><span class="action-thumb">${thumb}</span><strong>${escapeHTML(label)}</strong><small>${costParts(cost).length?costMarkup(cost):escapeHTML(extra||'')}</small>${age>1?`<span class="age-tag">${numeral(age)}</span>`:''}</button>`;
 }
 function renderCatalog(entities,summary){
   const own=entities.filter(e=>e.team===1),building=own.find(e=>BUILDINGS[e.kind]),unit=own.find(e=>UNITS[e.kind]);
@@ -316,7 +326,7 @@ function openPanel(name){
   if(name==='voice'){window.guildVoice?.toggle();return;}
   currentPanel=name;panelSignature='';$('#modal-backdrop').hidden=false;$('#panel-drawer').hidden=false;
   $('#panel-title').textContent=PANEL_TITLES.includes(name)?t(`app.panel.title.${name}`):name;
-  const content=$('#panel-content');
+  const content=$('#panel-content');content.scrollTop=0;
   if(name==='help')content.innerHTML=`<p class="panel-lead">${t('app.help.lead')}</p><p>${t('app.help.intro')}</p><h3>${t('app.help.controls.title')}</h3>${HELP_CONTROLS.map(id=>[t(`app.help.controls.${id}.key`),t(`app.help.controls.${id}.text`)]).map(([key,text])=>`<div class="help-row"><kbd>${key}</kbd><span>${text}</span></div>`).join('')}<h3>${t('app.help.build.title')}</h3><p>${t('app.help.build.p1')}</p><p>${t('app.help.build.p2')}</p><h3>${t('app.help.voice.title')}</h3><p>${t('app.help.voice.text')}</p>`;
   if(name==='roster'){
     content.innerHTML=`<p>${escapeHTML(t('app.roster.intro'))}</p><input class="roster-search" id="roster-search" placeholder="${escapeHTML(t('app.roster.searchPlaceholder'))}" aria-label="${escapeHTML(t('app.roster.searchLabel'))}" data-action="roster-search"><div id="roster-summary" class="roster-summary"></div><div id="roster-list"></div>`;
@@ -602,6 +612,9 @@ mountLanguageSelects();applyDocumentLocale();
 // Live language switch: re-label the menu in place and redraw every piece of text the HUD caches.
 onLocaleChange(()=>{
   localizeMenu();
+  // Notices hold finished text in the previous language: drop them rather than leave them stale.
+  $('#announcements')?.replaceChildren();
+  const status=$('#screen-reader-status');if(status)status.textContent='';
   if(!world)return;
   updateWorldCaption();
   invalidateHUD();catalogMarkup=null;
@@ -613,4 +626,5 @@ buildMenu();bindWorldInputs();
 import('./voice/index.js').then(({initializeVoice})=>initializeVoice(game)).catch(error=>announce(t('app.error.voiceUnavailable',{error:error.message}),true));
 if(new URLSearchParams(location.search).get('play')==='1')newMatch({});
 requestAnimationFrame(frame);
-window.addEventListener('resize',()=>{if(menuVisible)drawMenuLandscape($('#menu-landscape'));});
+window.addEventListener('resize',()=>{if(menuVisible)drawMenuLandscape($('#menu-landscape'));updateCatalogCue();});
+$('#action-catalog')?.addEventListener('scroll',updateCatalogCue,{passive:true});

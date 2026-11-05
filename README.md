@@ -1,5 +1,7 @@
 # Gremios del Alba
 
+[Español](README.md) · [English](README.en.md) · [Português](README.pt.md) · [日本語](README.ja.md) · [العربية](README.ar.md) · [Deutsch](README.de.md) · [Français](README.fr.md)
+
 Un RTS de fantasía **open source**, jugable en el navegador, con aldeanos con
 nombre, gremios, construcción, recursos, murallas, combate y órdenes en español.
 
