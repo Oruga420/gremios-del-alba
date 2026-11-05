@@ -1,3 +1,87 @@
-/** es interface strings: html. */
+/** es interface strings: html (static text in index.html, applied by translateDOM). */
 export default {
+  'html.title': 'Gremios del Alba — Crónicas de un nuevo mundo',
+  'html.language.title': 'Idioma',
+
+  // Start screen: story panel
+  'html.story.label': 'Gremios del Alba',
+  'html.story.brand.label': 'Gremios del Alba, inicio',
+  'html.story.brand.text': 'ESTUDIO DEL ALBA <small>CRÓNICAS INTERACTIVAS</small>',
+  'html.story.eyebrow': 'UN MUNDO POR CONSTRUIR',
+  'html.story.heading': 'Gremios<br>del <em>Alba.</em>',
+  'html.story.tagline': 'Donde termina el viejo mundo,<br>comienza la historia de tu ciudad.',
+  'html.story.details.genre': 'ESTRATEGIA EN TIEMPO REAL',
+  'html.story.details.setting': 'UN MUNDO DE FANTASÍA',
+  'html.story.footer.motto': 'Diez tierras. Cuatro gremios. Tu legado.',
+  'html.story.footer.edition': 'EDICIÓN I <i>—</i> EL DESPERTAR',
+
+  // Start screen: match setup
+  'html.setup.eyebrow': 'TU PRÓXIMA CRÓNICA',
+  'html.setup.help': 'Cómo jugar',
+  'html.setup.title': 'Un nuevo comienzo',
+  'html.setup.subtitle': 'Elige tu gremio y encuentra un lugar al que llamar hogar.',
+  'html.setup.guild.legend': 'Elige tu gremio',
+  'html.setup.guild.note': 'Cada origen deja su huella',
+  'html.setup.map.legend': 'Descubre una tierra',
+  'html.setup.map.count': '10 regiones exploradas',
+  'html.setup.difficulty.label': 'EL DESAFÍO',
+  'html.setup.difficulty.easy': 'Sereno · Fácil',
+  'html.setup.difficulty.normal': 'Equilibrado · Normal',
+  'html.setup.difficulty.hard': 'Implacable · Difícil',
+  'html.setup.mode.legend': 'EL CAMINO',
+  'html.setup.mode.conquest': 'Conquista',
+  'html.setup.mode.peaceful': 'Pacífico',
+  'html.setup.start': 'Comenzar partida',
+  'html.setup.load': 'Cargar crónica',
+  'html.setup.footer': 'Un jugador <i>·</i> Partida local <i>·</i> Mapa revelado',
+
+  // Game screen: top bar
+  'html.top.newMatch': 'Nueva partida',
+  'html.top.brand': 'Gremios <em>del Alba</em>',
+  'html.top.resources': 'Recursos de tu ciudad',
+  'html.top.population.title': 'Habitantes / capacidad. Máximo 1.000 por ciudad.',
+  'html.top.save.title': 'Guardar partida (Ctrl+S)',
+  'html.top.save.label': 'Guardar partida',
+  'html.top.load.title': 'Cargar partida',
+  'html.top.load.label': 'Cargar partida',
+  'html.top.help.title': 'Ayuda y controles',
+  'html.top.help.label': 'Ayuda',
+
+  // Game screen: world stage
+  'html.world.stage': 'Mapa de juego',
+  'html.world.canvas': 'Mundo isométrico. Arrastra para seleccionar; clic derecho para dar órdenes.',
+  'html.world.pause.title': 'Pausar (Espacio)',
+  'html.world.speed.title': 'Cambiar velocidad',
+  'html.world.commandHint': 'Selecciona a tus habitantes y haz clic derecho para dar una orden.',
+  'html.world.idle.title': 'Seleccionar aldeanos inactivos (.)',
+  'html.world.idle.label': 'inactivos',
+  'html.world.zoomOut': 'Alejar',
+  'html.world.zoomIn': 'Acercar',
+  'html.pause.eyebrow': 'EL TIEMPO DESCANSA',
+  'html.pause.title': 'Partida en pausa',
+  'html.pause.hint': 'Pulsa Espacio para continuar',
+  'html.voice.call': 'Llamar a Sota',
+
+  // Game screen: command deck
+  'html.deck.selection': 'Selección actual',
+  'html.deck.categories': 'Categorías',
+  'html.deck.tab.economy': 'Ciudad',
+  'html.deck.tab.military': 'Ejército',
+  'html.deck.tab.defense': 'Defensas',
+  'html.deck.tab.knowledge': 'Saber',
+  'html.deck.roster': 'Habitantes',
+  'html.deck.shortcuts': '<kbd>B</kbd> Construir <i>·</i> <kbd>A</kbd> Atacar <i>·</i> <kbd>S</kbd> Detener',
+  'html.minimap.title': 'EL MUNDO CONOCIDO',
+  'html.minimap.center.title': 'Centrar selección',
+  'html.minimap.center.label': 'Centrar',
+  'html.minimap.label': 'Minimapa, haz clic para navegar',
+  'html.minimap.legend.own': 'Tu gremio',
+  'html.minimap.legend.enemy': 'Rival',
+
+  // Side panel and winner dialog
+  'html.panel.eyebrow': 'CRÓNICAS DEL GREMIO',
+  'html.panel.close': 'Cerrar',
+  'html.winner.eyebrow': 'UNA CRÓNICA LLEGA A SU FIN',
+  'html.winner.newStory': 'Escribir una nueva historia',
+  'html.winner.continue': 'Contemplar el mundo',
 };

@@ -1,11 +1,13 @@
 import { BUILDINGS, TECHNOLOGIES, MAPS } from '../game/data.js';
 import { normalize, unitKind, buildingKind, catalogId } from './registry.js';
 import { resourceKind } from './semantic.js';
+import { normalizeCommand } from './lexicon.js';
+import { phrase } from './i18n.js';
 const RESOURCES = { madera:'wood',wood:'wood',alimento:'food',alimentos:'food',comida:'food',food:'food',oro:'gold',gold:'gold',piedra:'stone',stone:'stone',pesca:'fish',pescado:'fish',fish:'fish' };
 const NUMBERS = { un:1,una:1,uno:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,cien:100 };
 const count = (value) => NUMBERS[normalize(value)] ?? Number(value);
 const command = (name, input = {}) => ({ name, input });
-const unknown = (speak) => ({ error: { ok:false, code:'COMMAND_NOT_UNDERSTOOD', speak: speak || 'No entendí la orden. Prueba «selecciona a Luna», «Luna recoge madera», «entrena cinco arqueros», «estado» o «ayuda».' } });
+const unknown = (key = 'voice.parser.notUnderstood') => { const value = phrase(key); return { error: { ok:false, code:'COMMAND_NOT_UNDERSTOOD', speak: value.text, i18n: value.i18n } }; };
 const rawTarget = (value) => String(value || '').trim().replace(/^(?:a|al|el|la|los|las|mis|mi)\s+/iu,'');
 function coordinates(text) { const match = text.match(/(-?\d+(?:[.]\d+)?)\s*[,;]\s*(-?\d+(?:[.]\d+)?)/u) || text.match(/(?:en|a|hasta)\s+(\d+)\s+(?:y|con)\s+(\d+)/iu); return match ? { x:Number(match[1]), y:Number(match[2]) } : null; }
 function targetBefore(text, verb) { const index = text.search(verb); return index > 0 ? text.slice(0,index).trim().replace(/[,;:]$/u,'').trim() : undefined; }
@@ -13,12 +15,13 @@ const formationPhrase = /(?:\ben\s+)?(?:\bformaci[oó]n\s+)?\b(l[ií]nea|caja|cu
 const movingFormationPhrase = /(?:\ben\s+(?:formaci[oó]n\s+)?|\bformaci[oó]n\s+)\b(l[ií]nea|caja|cuadro|cuadrado|escalonad[ao])\b/iu;
 const formationKind = value => /^l[ií]nea$/iu.test(value) ? 'line' : /^escalonad/iu.test(value) ? 'staggered' : 'box';
 
-export function parseSpanishCommand(original, { game, confirm, mode = 'direct' } = {}) {
-  const text = String(original || '').trim().replace(/[.!?¿¡]+$/u,'');
+export function parseSpanishCommand(original, { game, confirm, mode = 'direct', locale } = {}) {
+  // Orders in en/pt/ja/ar/de/fr are rewritten to Spanish phrasing first; Spanish passes untouched.
+  const text = String(normalizeCommand(String(original || ''), locale ? { locale } : undefined) || '').trim().replace(/[.!?¿¡]+$/u,'');
   const normalized = normalize(text);
-  if (!text || text.length > 240) return unknown('Escribe una orden de hasta 240 caracteres.');
+  if (!text || text.length > 240) return unknown('voice.parser.tooLong');
   if (/^(?:alto|stop|detente|deten|cancelar|cancela|para|no|no confirmo)$/u.test(normalized)) return command('stop_action');
-  if (/^(?:si|si confirma|confirmar|confirma|confirmo|acepto|adelante|hazlo)$/u.test(normalized)) { const proposal = confirm?.getState(); return mode === 'direct' || proposal ? command('confirm_action',{proposalId:proposal?.proposalId || 'direct-mode',confirmationText:text}) : unknown('No hay una propuesta que confirmar.'); }
+  if (/^(?:si|si confirma|confirmar|confirma|confirmo|acepto|adelante|hazlo)$/u.test(normalized)) { const proposal = confirm?.getState(); return mode === 'direct' || proposal ? command('confirm_action',{proposalId:proposal?.proposalId || 'direct-mode',confirmationText:text}) : unknown('voice.parser.noProposal'); }
   if (/^(?:estado|recursos|mi ciudad|estado de (?:la |mi )?ciudad|como vamos|poblacion)$/u.test(normalized)) return command('read_city');
   if (/^(?:oficios|profesiones|roles|resumen de (?:roles|oficios|profesiones))$/u.test(normalized)) return command('read_roles');
   if (/^(?:ayuda|como jugar|controles)$/u.test(normalized)) return command('open_panel',{panel:'help'});
@@ -53,11 +56,11 @@ export function parseSpanishCommand(original, { game, confirm, mode = 'direct' }
   match = text.match(/^(?:compra|comprar|vende|vender)\s+(\d+|[\p{L}]+)\s+(?:de\s+)?(.+)$/iu);
   if (match && RESOURCES[normalize(match[2])]) return command('propose_trade',{amount:count(match[1]),resource:RESOURCES[normalize(match[2])],direction:/^compr/iu.test(text)?'buy':'sell'});
   match = text.match(/^(?:investiga|investigar|mejora|mejorar)\s+(.+?)(?:\s+en\s+(.+))?$/iu);
-  if (match) { const id = catalogId(match[1],TECHNOLOGIES); return id ? command('propose_research',{technologyId:id,...(match[2]?{building:match[2]}:{})}) : unknown('No encontré esa tecnología. Abre Saber para ver los nombres exactos.'); }
+  if (match) { const id = catalogId(match[1],TECHNOLOGIES); return id ? command('propose_research',{technologyId:id,...(match[2]?{building:match[2]}:{})}) : unknown('voice.parser.technologyNotFound'); }
   match = text.match(/^(?:abre|abrir|cierra|cerrar)\s+(?:la\s+)?(.+)$/iu);
   if (match && /puerta|gate/iu.test(match[1])) return command('propose_gate',{building:match[1],open:/^abr/iu.test(text)});
   match = text.match(/^(?:nuevo mapa|nueva partida|comienza en|comenzar en|cambia el mapa a)\s+(.+)$/iu);
-  if (match) { const map = MAPS.find((entry)=>[normalize(entry.id.replaceAll('-',' ')),normalize(entry.name)].includes(normalize(match[1]))); const state = game?.world?.state; return map ? command('propose_new_match',{mapId:map.id,guildId:state?.guildId||'alba',difficulty:state?.difficulty||'normal',mode:state?.mode||'conquest'}) : unknown('No encontré esa región. Consulta el catálogo de mapas.'); }
+  if (match) { const map = MAPS.find((entry)=>[normalize(entry.id.replaceAll('-',' ')),normalize(entry.name)].includes(normalize(match[1]))); const state = game?.world?.state; return map ? command('propose_new_match',{mapId:map.id,guildId:state?.guildId||'alba',difficulty:state?.difficulty||'normal',mode:state?.mode||'conquest'}) : unknown('voice.parser.mapNotFound'); }
   match = text.match(/^(?:(?:fija|pon|establece|cambia)\s+(?:el\s+)?)?punto\s+de\s+reuni[oó]n(?:\s+(?:del|de la|de)\s+(.+?))?\s+(?:a|al|en|hacia)\s+(.+)$/iu);
   if (match) { const point = coordinates(match[2]); return command('propose_rally',{...(match[1]?{building:match[1]}:{}),...(point||{destination:match[2]})}); }
   const formationCommand = /^(?:forma|formen|formar|formacion|agrupa|agrupen|pon|pongan)\b/u.test(normalized);
@@ -65,11 +68,11 @@ export function parseSpanishCommand(original, { game, confirm, mode = 'direct' }
   if (formation && formationCommand) {
     const target = text.slice(0,formation.index).replace(/^(?:forma|formen|formar|formaci[oó]n|agrupa|agrupen|pon|pongan)\s*/iu,'').replace(/\s+(?:en|en formaci[oó]n)\s*$/iu,'').trim();
     const after = text.slice(formation.index+formation[0].length).trim();
-    if (after && !/^(?:a|al|en|hacia)\s+/iu.test(after)) return unknown('Prueba «forma en línea» o «forma los arqueros en caja».');
+    if (after && !/^(?:a|al|en|hacia)\s+/iu.test(after)) return unknown('voice.parser.formationHint');
     return command('propose_formation',{kind:formationKind(formation[1]),...(target?{target:rawTarget(target)}:{}),...(after?{destination:after.replace(/^(?:a|al|en|hacia)\s+/iu,'')}:{})});
   }
   const gatherVerb = /\b(?:recoge|recoger|recolecta|recolecten|recogan|tala|talen|gather)\b/iu;
-  if (gatherVerb.test(text)) { const verb = text.match(gatherVerb); const after = text.slice(verb.index+verb[0].length).trim(); const resource = resourceKind(after); return resource ? command('propose_gather',{resource,...(targetBefore(text,gatherVerb)?{target:targetBefore(text,gatherVerb)}:{})}) : unknown('Indica madera, alimento, oro, piedra o pesca.'); }
+  if (gatherVerb.test(text)) { const verb = text.match(gatherVerb); const after = text.slice(verb.index+verb[0].length).trim(); const resource = resourceKind(after); return resource ? command('propose_gather',{resource,...(targetBefore(text,gatherVerb)?{target:targetBefore(text,gatherVerb)}:{})}) : unknown('voice.parser.resourceHint'); }
   const moveVerb = /\b(?:mueve|mu[eé]vete|mover|muevan|avancen|avanza|ve|vayan|regresa|regresen|vuelve|vuelvan|manda|env[ií]a|move)\b/iu;
   if (moveVerb.test(text)) {
     const moveText=formation?text.replace(formation[0],' ').replace(/\s+/gu,' ').trim():text,style=formation?{formation:formationKind(formation[1])}:{};
@@ -89,18 +92,18 @@ export function parseSpanishCommand(original, { game, confirm, mode = 'direct' }
     return command('propose_cast',{spell:'heal',...(target?{target}:{}),...(point||{destination:rawTarget(after)||'heridos'})});
   }
   const repairVerb = /\b(?:repara|reparen|reparar|repair)\b/iu;
-  if (repairVerb.test(text)) { const verb=text.match(repairVerb),before=targetBefore(text,repairVerb),building=rawTarget(text.slice(verb.index+verb[0].length)); return building?command('propose_repair',{building,...(before?{target:before}:{})}):unknown('Indica el edificio que reparar.'); }
+  if (repairVerb.test(text)) { const verb=text.match(repairVerb),before=targetBefore(text,repairVerb),building=rawTarget(text.slice(verb.index+verb[0].length)); return building?command('propose_repair',{building,...(before?{target:before}:{})}):unknown('voice.parser.repairHint'); }
   const buildVerb = /\b(?:construye|construyan|construir|levanten|levanta|build)\b/iu;
   if (buildVerb.test(text)) {
     const verb=text.match(buildVerb),target=targetBefore(text,buildVerb),after=text.slice(verb.index+verb[0].length).trim().replace(/^(?:un|una)\s+/iu,'');
     const split=after.match(/^(.*?)(\s+(?:en|al|a la|hacia|desde|detr[aá]s del?|atr[aá]s del?|junto al?|cerca del?|delante del?|frente al?)\s+.*)$/iu);
     const kind=buildingKind(split?split[1]:after);
-    if (!kind) return unknown('Indica un edificio: casa, cuartel, granja o muralla.');
+    if (!kind) return unknown('voice.parser.buildingHint');
     const location=split?split[2].trim().replace(/^(?:en|hacia)\s+/iu,''):undefined;
     const pairs=[...text.matchAll(/(-?\d+(?:[.]\d+)?)\s*[,;]\s*(-?\d+(?:[.]\d+)?)/gu)].map(entry=>({x:Number(entry[1]),y:Number(entry[2])}));
     if (['wall','palisade'].includes(kind)) {
       if(pairs.length>=2)return command('propose_wall',{kind,...pairs[0],endX:pairs[1].x,endY:pairs[1].y,...(target?{target}:{})});
-      if(pairs.length)return unknown('Falta el otro extremo; también puedes decir «muralla al norte».');
+      if(pairs.length)return unknown('voice.parser.wallEndHint');
       return command('propose_wall',{kind,...(location?{location}:{}),...(target?{target}:{})});
     }
     const point=coordinates(text);return command('propose_build',{kind,...(point||location&&{location}||{}),...(target?{target}:{})});

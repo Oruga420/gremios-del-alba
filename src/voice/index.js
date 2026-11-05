@@ -19,25 +19,28 @@ export function initializeVoice(game) {
   const controller = new AbortController();
   function updateStatus(value) { if (destroyed) return; if (value.mode === 'local') status.localSpeech = { ...status.localSpeech, ...value }; if (value.mode === 'browser') status.browserSpeech = { ...status.browserSpeech, ...value }; if (value.mode === 'elevenlabs') status.elevenlabs = { ...status.elevenlabs, ...value }; panel.setStatus(value); }
   function completeResponse(binding) { if (!destroyed && binding) registry.confirm.speechEnded(binding); }
+  // The panel shows results in the active language (value.i18n); without it, the Spanish `speak`.
+  // This module stays free of extra imports: the i18n helpers live behind the panel.
+  const shown = (value) => (typeof panel.text === 'function' ? panel.text(value) : value.speak);
   function speakResult(value, source) {
-    panel.addTranscript(value.speak, 'agent'); game.announce(value.speak, !value.ok);
+    const text = shown(value); panel.addTranscript(text, 'agent', value); game.announce(text, !value.ok);
     // These responses are displayed with no audio output scheduled. Explicit completion
     // is neither an audio/microphone proof nor an expiry fallback.
     if (value.code === 'ARMED' && ['typed', 'browser-speech', 'local-speech'].includes(source)) completeResponse(value.data);
     return value;
   }
   function runText(text, context = { source: 'typed' }) {
-    if (destroyed) return { ok: false, code: 'DISCONNECTED', speak: 'La sesión terminó.' };
+    if (destroyed) return { ok: false, code: 'DISCONNECTED', speak: 'La sesión terminó.', i18n: { key: 'voice.session.ended' } };
     const source = context.source || 'typed'; panel.visible(true);
     if (source === 'typed' && agent?.engaged) {
       const result = agent.sendText(text);
-      if (!result.ok && result.speak) panel.addTranscript(result.speak, 'agent');
+      if (!result.ok && result.speak) panel.addTranscript(shown(result), 'agent', result);
       return result;
     }
     panel.addTranscript(text, source);
     let parsed;
     try { parsed = parseSpanishCommand(text, { game, confirm: registry.confirm, mode: registry.mode }); }
-    catch (error) { parsed = { error: { ok: false, code: error.code || 'COMMAND_REJECTED', speak: error.code ? error.message : 'No pude resolver esa orden.' } }; }
+    catch (error) { parsed = { error: { ok: false, code: error.code || 'COMMAND_REJECTED', speak: error.code ? error.message : 'No pude resolver esa orden.', ...(error.code ? (error.i18n ? { i18n: error.i18n } : {}) : { i18n: { key: 'voice.parser.unresolved' } }) } }; }
     return speakResult(parsed.error || registry.runTool(parsed.name, parsed.input, { ...context, source }), source);
   }
   function endVoice(reason = 'disconnected') {
@@ -60,7 +63,7 @@ export function initializeVoice(game) {
     onMic: (event, lang, mode) => { microphoneMode = mode; if (agent?.engaged) agent.end('mode-changed'); if (mode === 'local') { if (speech.active) speech.stop('mode-changed'); localSpeech.start(event); } else { if (localSpeech.active) localSpeech.stop('mode-changed'); speech.start(event, lang); } },
     onAgent: startCall,
     onMute: (muted) => agent.setMuted(muted),
-    onModeChange: (mode) => { endVoice('mode-changed'); microphoneMode = mode; panel.setStatus({ mode, state: 'idle', active: false, message: mode === 'local' ? 'Micrófono local listo. Las respuestas aparecen en texto.' : 'Reconocimiento del navegador seleccionado.' }); },
+    onModeChange: (mode) => { endVoice('mode-changed'); microphoneMode = mode; panel.setStatus({ mode, state: 'idle', active: false, message: mode === 'local' ? 'Micrófono local listo. Las respuestas aparecen en texto.' : 'Reconocimiento del navegador seleccionado.', i18n: { key: mode === 'local' ? 'voice.status.localModeReady' : 'voice.status.browserSelected' } }); },
     onEnd: endVoice,
     onConfirm: () => { const pending = registry.confirm.getState(); if (pending) speakResult(registry.runTool('confirm_action', { proposalId: pending.proposalId, confirmationText: 'confirmado con el botón' }, { source: 'typed' }), 'typed'); },
     onStop: () => speakResult(registry.runTool('stop_action', {}, { source: 'typed' }), 'typed')
@@ -71,11 +74,11 @@ export function initializeVoice(game) {
     onTranscript: (text, context) => { if (!destroyed) panel.addTranscript(text, context.source); },
     onAudioLevel: (level) => { if (!destroyed) panel.setAudioLevel(level); },
     onMuted: (muted) => { if (!destroyed) panel.setMuted(muted); },
-    onActivity: (title) => { if (!destroyed) panel.setActivity(title); }
+    onActivity: (title, name) => { if (!destroyed) panel.setActivity(title, name); }
   });
   const unsubscribe = registry.confirm.subscribe((value) => {
     panel.setProposal(value);
-    if (value && !['proposed','armed','countdown','executing'].includes(value.state) && value.proposalId !== lastTerminal) { lastTerminal = value.proposalId; if (value.result?.speak) { panel.addTranscript(value.result.speak); game.announce(value.result.speak, !value.result.ok); } }
+    if (value && !['proposed','armed','countdown','executing'].includes(value.state) && value.proposalId !== lastTerminal) { lastTerminal = value.proposalId; if (value.result?.speak) { const text = shown(value.result); panel.addTranscript(text, 'agent', value.result); game.announce(text, !value.result.ok); } }
   });
   const timer = setInterval(() => { if (registry.confirm.pending) panel.setProposal(registry.confirm.tick()); }, 100);
   function worldChanged() {
@@ -99,7 +102,7 @@ export function initializeVoice(game) {
     destroy() { if (destroyed) return; destroyed = true; clearInterval(timer); controller.abort(); unsubscribe(); speech.destroy(); localSpeech.destroy(); agent.destroy(); registry.confirm.destroy(); native?.destroy(); panel.destroy(); if (window.guildTools === bridge) delete window.guildTools; }
   };
   window.guildVoice = voice;
-  panel.setStatus({ mode: microphoneMode, state: 'idle', active: false, message: 'Escribe una orden o pulsa Escuchar. Las respuestas aparecen en texto.' });
+  panel.setStatus({ mode: microphoneMode, state: 'idle', active: false, message: 'Escribe una orden o pulsa Escuchar. Las respuestas aparecen en texto.', i18n: { key: 'voice.status.initial' } });
   registerNativeTools({ tools: registry.exportRegistry(), runTool: registry.runTool, onStatus(value) { if (!destroyed) { status.native = value; panel.setNative(value); } } }).then((adapter) => { native = adapter; if (destroyed) adapter.destroy(); }).catch(() => { status.native = { state: 'registration-failed', provenance: 'none', registered: [], failures: [{ name: 'registration', error: 'UnexpectedFailure' }] }; panel.setNative(status.native); });
   async function refreshAgentAvailability() {
     try { const value = await (await fetch('/api/voice/status', { cache: 'no-store', signal: controller.signal })).json(); if (!destroyed) { status.elevenlabs = { ...status.elevenlabs, configured: value.configured === true, state: agent?.engaged ? status.elevenlabs.state : value.configured ? 'configured-unverified' : 'blocked', code: value.code, liveAudioVerified: false }; panel.setAgentAvailability(status.elevenlabs); } }
@@ -112,7 +115,7 @@ export function initializeVoice(game) {
         const value = await (await fetch('/api/speech/status', { cache: 'no-store', signal: controller.signal })).json();
         if (destroyed) return;
         status.localSpeech = { ...status.localSpeech, ...value }; panel.setLocalReady(value);
-        if (value.ready) { panel.setStatus({ state: 'ready', message: 'Reconocimiento local listo. Pulsa Escuchar y di una frase.' }); return; }
+        if (value.ready) { panel.setStatus({ state: 'ready', message: 'Reconocimiento local listo. Pulsa Escuchar y di una frase.', i18n: { key: 'voice.status.localRecognizerReady' } }); return; }
         if (value.state !== 'starting') return;
       } catch { if (!destroyed) { status.localSpeech.state = 'unavailable'; panel.setLocalReady({ ready: false }); } return; }
       await new Promise((resolve) => setTimeout(resolve, 250));

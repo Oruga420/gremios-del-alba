@@ -1,7 +1,9 @@
 import { BUILDINGS, UNITS } from '../game/data.js';
+import { phrase } from './i18n.js';
 
 const norm = value => String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
-const fail = (code, message) => { throw Object.assign(new Error(message), { code }); };
+// Errors keep the Spanish message and carry its dictionary key for display.
+const fail = (code, key) => { const value = phrase(key); throw Object.assign(new Error(value.text), { code, i18n: value.i18n }); };
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 export const nearestFirst = origin => (a, b) => distance(a, origin) - distance(b, origin) || String(a.id || '').localeCompare(String(b.id || ''));
 export const center = entity => ({ x: entity.x + (BUILDINGS[entity.kind]?.size || 0) / 2, y: entity.y + (BUILDINGS[entity.kind]?.size || 0) / 2 });
@@ -11,13 +13,13 @@ export function referencePoint(game, units = []) {
   if (group.length) return { x: group.reduce((sum, u) => sum + u.x, 0) / group.length, y: group.reduce((sum, u) => sum + u.y, 0) / group.length };
   const hall = game.world.state.buildings.find(b => b.team === 1 && b.hp > 0 && b.kind === 'guildhall');
   const survivor = hall || game.world.state.units.find(u => u.team === 1 && u.hp > 0) || game.world.state.buildings.find(b => b.team === 1 && b.hp > 0);
-  if (!survivor) fail('TARGET_NOT_FOUND', 'No quedan habitantes ni edificios propios para situar la orden.');
+  if (!survivor) fail('TARGET_NOT_FOUND', 'voice.semantic.noOwnEntities');
   return center(survivor);
 }
 export function explicitPoint(input, wall = false) {
   const keys = wall ? ['x', 'y', 'endX', 'endY'] : ['x', 'y'];
   const present = keys.filter(key => input[key] !== undefined);
-  if (present.length && present.length !== keys.length) fail('POSITION_REQUIRED', wall ? 'Indica una dirección, por ejemplo al norte de tu base.' : 'Indica un lugar como tu base o el cuartel.');
+  if (present.length && present.length !== keys.length) fail('POSITION_REQUIRED', wall ? 'voice.semantic.wallDirection' : 'voice.semantic.placeRequired');
   return present.length ? Object.fromEntries(keys.map(key => [key, input[key]])) : null;
 }
 export function reachable(world, units, point, every = true) {
@@ -44,12 +46,12 @@ export function semanticPoint(game, input, units, resolve, defaultLocation) {
   const point = explicitPoint(input);
   if (point) return point;
   const location = input.destination || input.location || defaultLocation;
-  if (!location) fail('DESTINATION_REQUIRED', 'Indica un lugar, por ejemplo tu base, el cuartel o el bosque cercano.');
+  if (!location) fail('DESTINATION_REQUIRED', 'voice.semantic.destinationRequired');
   const kind = resourceKind(location);
   const entity = kind ? nearestResource(game, kind, units) : resolve(location, { origin: referencePoint(game, units) });
-  if (!entity) fail('TARGET_NOT_FOUND', 'No hay un recurso accesible de ese tipo.');
+  if (!entity) fail('TARGET_NOT_FOUND', 'voice.semantic.noResource');
   const destination = center(entity);
-  if (units.length && !reachable(game.world, units, destination)) fail('UNREACHABLE_TARGET', 'No hay camino hasta ese destino para estas unidades.');
+  if (units.length && !reachable(game.world, units, destination)) fail('UNREACHABLE_TARGET', 'voice.semantic.unreachable');
   return destination;
 }
 
@@ -102,5 +104,5 @@ export function constructionPoint(game, input, units, resolve, wall = false, aut
     const point = wall ? { ...plots[0], endX: plots.at(-1).x, endY: plots.at(-1).y } : { x: p.x, y: p.y };
     return builder ? { ...point, builderId: builder.id } : point;
   }
-  fail('NO_LEGAL_PLACEMENT', 'No hay espacio accesible cerca de ese lugar.');
+  fail('NO_LEGAL_PLACEMENT', 'voice.semantic.noPlacement');
 }

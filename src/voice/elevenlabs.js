@@ -1,4 +1,6 @@
 // Official SDK integration, loaded only on explicit call. No CDN, global key or shim.
+import { t, getLocale, localeInfo, onLocaleChange, DEFAULT_LOCALE } from '../i18n/index.js';
+import { status as said, phrase } from './i18n.js';
 const SDK_MODULE = '/assets/vendor/elevenlabs-client.js';
 export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTranscript, onAudioLevel = () => {}, onMuted = () => {}, onActivity = () => {}, fetcher = fetch, sdkLoader = () => import(SDK_MODULE) }) {
   let conversation = null;
@@ -13,6 +15,20 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
   let audioTimer = null, activityTimer = null, muted = false, activityVersion = 0;
   let pendingEchoes = [];
   const releasedGrants = new WeakSet();
+  // Tell the conversational agent which language the player reads, without changing the server
+  // grant: the dynamic variable `language` (already sent as 'es') and, for other languages, one
+  // contextual update. Spanish keeps the original behaviour exactly.
+  // The language is named by its own label and code, so the message stays right even while that
+  // language's dictionary lacks this key. Switching back to Spanish mid-call is announced too.
+  let toldLanguage = null;
+  function tellLanguage(instance = conversation) {
+    const locale = getLocale();
+    if (!instance || typeof instance.sendContextualUpdate !== 'function') return;
+    if (locale === DEFAULT_LOCALE && toldLanguage === null) return;
+    if (locale === toldLanguage) return;
+    try { instance.sendContextualUpdate(t('voice.call.languageContext', { language: localeInfo(locale).label, code: locale })); toldLanguage = locale; } catch { /* Optional SDK feature. */ }
+  }
+  const stopLanguageWatch = onLocaleChange(() => { if (conversation) tellLanguage(); });
   const messageIds = new Set();
   async function release(previous = grant, previousCsrf = csrf) {
     if (previous === grant) grant = null;
@@ -30,8 +46,8 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
     const released = release(previousGrant, previousCsrf);
     if (previous) { try { await previous.endSession(); } catch { /* Already disconnected. */ } }
     await released;
-    const message = reason === 'world-changed' ? 'La partida cambió. Vuelve a llamar.' : reason === 'hard-cap' ? 'La llamada terminó al llegar a 5 minutos.' : reason === 'idle-timeout' ? 'La llamada terminó tras 90 segundos sin actividad.' : reason === 'quota' ? 'ElevenLabs informó un límite de uso. Revisa las llamadas disponibles y el saldo.' : 'Llamada ElevenLabs terminada.';
-    if (endedEpoch === epoch) onStatus({ mode: 'elevenlabs', state: reason, active: false, message });
+    const message = reason === 'world-changed' ? 'voice.call.worldChanged' : reason === 'hard-cap' ? 'voice.call.hardCap' : reason === 'idle-timeout' ? 'voice.call.idleTimeout' : reason === 'quota' ? 'voice.call.quota' : 'voice.call.ended';
+    if (endedEpoch === epoch) onStatus({ mode: 'elevenlabs', state: reason, active: false, ...said(message) });
     return endedEpoch;
   }
   function resetIdle() { clearTimeout(idleTimer); idleTimer = setTimeout(() => end('idle-timeout'), 90_000); }
@@ -46,13 +62,13 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
   }
   function sendText(value) {
     const text = String(value ?? '').trim();
-    if (!conversation) return { ok: false, code: 'CALL_NOT_ACTIVE', speak: 'Espera a que conecte la llamada.' };
+    if (!conversation) { const value = phrase('voice.call.waitForConnection'); return { ok: false, code: 'CALL_NOT_ACTIVE', speak: value.text, i18n: value.i18n }; }
     if (!text) return { ok: false, code: 'EMPTY_MESSAGE' };
     const echo = { text, at: Date.now() }, callEpoch = epoch;
     pendingEchoes = pendingEchoes.filter(item => Date.now() - item.at < 30_000);
     pendingEchoes.push(echo);
     try { conversation.sendUserMessage(text); }
-    catch { pendingEchoes = pendingEchoes.filter(item => item !== echo); return { ok: false, code: 'MESSAGE_FAILED', speak: 'No pude enviar el mensaje. Intenta otra vez.' }; }
+    catch { pendingEchoes = pendingEchoes.filter(item => item !== echo); const value = phrase('voice.call.sendFailed'); return { ok: false, code: 'MESSAGE_FAILED', speak: value.text, i18n: value.i18n }; }
     if (callEpoch !== epoch) return { ok: false, code: 'DISCONNECTED' };
     resetIdle(); onTranscript(text, { source: 'elevenlabs-user' });
     return { ok: true, code: 'MESSAGE_SENT' };
@@ -65,7 +81,7 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
     const callEpoch = ++epoch;
     const sessionEpoch = confirm.sessionEpoch;
     const abort = new AbortController(); connectionAbort = abort;
-    onStatus({ mode: 'elevenlabs', state: 'connecting', active: false, message: 'Comprobando acceso al agente personal…' });
+    onStatus({ mode: 'elevenlabs', state: 'connecting', active: false, ...said('voice.call.checkingAccess') });
     try {
       const status = await (await fetcher('/api/voice/status', { cache: 'no-store', signal: abort.signal })).json();
       if (callEpoch !== epoch) return { ok: false, code: 'DISCONNECTED' };
@@ -84,25 +100,25 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
       const clientTools = Object.fromEntries(tools.map((tool) => [tool.name, async (input) => {
         if (callEpoch !== epoch) return JSON.stringify({ ok: false, code: 'STALE_SESSION', speak: 'La sesión cambió.' });
         if (confirm.sessionEpoch !== sessionEpoch) { await end('world-changed'); return JSON.stringify({ ok: false, code: 'STALE_SESSION', speak: 'La partida cambió. Vuelve a llamar.' }); }
-        resetIdle(); const activity = ++activityVersion; clearTimeout(activityTimer); onActivity(tool.title || tool.name);
+        resetIdle(); const activity = ++activityVersion; clearTimeout(activityTimer); onActivity(tool.title || tool.name, tool.name);
         try { return JSON.stringify(await runTool(tool.name, input, { source: 'elevenlabs', sessionEpoch })); }
         catch { return JSON.stringify({ ok: false, code: 'TOOL_FAILED', speak: 'No pude completar esa orden.' }); }
         finally { if (callEpoch === epoch && activity === activityVersion) activityTimer = setTimeout(() => { if (callEpoch === epoch && activity === activityVersion) onActivity(''); }, 1500); }
       }]));
-      const instance = await module.Conversation.startSession({ conversationToken: value.conversationToken, connectionType: 'webrtc', dynamicVariables: value.dynamicVariables, clientTools, workletPaths: { rawAudioProcessor: '/assets/vendor/elevenlabs-raw-audio-processor.js' },
-        onConnect: () => { if (callEpoch === epoch) { resetIdle(); onStatus({ mode: 'elevenlabs', state: 'connected', active: true, message: 'Agente personal conectado.' }); } },
+      const instance = await module.Conversation.startSession({ conversationToken: value.conversationToken, connectionType: 'webrtc', dynamicVariables: { ...value.dynamicVariables, ...(getLocale() !== DEFAULT_LOCALE ? { language: getLocale() } : {}) }, clientTools, workletPaths: { rawAudioProcessor: '/assets/vendor/elevenlabs-raw-audio-processor.js' },
+        onConnect: () => { if (callEpoch === epoch) { resetIdle(); onStatus({ mode: 'elevenlabs', state: 'connected', active: true, ...said('voice.call.connected') }); } },
         onDisconnect: () => { if (callEpoch === epoch) end('disconnected'); },
         onError: (message) => { if (callEpoch === epoch) end(/quota|daily.limit|usage.limit/iu.test(String(message)) ? 'quota' : 'error'); },
         onStatusChange: ({ status }) => {
           if (callEpoch !== epoch) return;
           if (status === 'disconnected') { end('disconnected'); return; }
           if (!['connecting', 'connected', 'reconnecting', 'disconnecting'].includes(status)) return;
-          onStatus({ mode: 'elevenlabs', state: status, active: ['connected', 'reconnecting'].includes(status), message: status === 'reconnecting' ? 'Reconectando con el agente…' : status === 'connected' ? 'Agente personal conectado.' : status === 'disconnecting' ? 'Terminando llamada…' : 'Conectando con el agente…' });
+          onStatus({ mode: 'elevenlabs', state: status, active: ['connected', 'reconnecting'].includes(status), ...said(status === 'reconnecting' ? 'voice.call.reconnecting' : status === 'connected' ? 'voice.call.connected' : status === 'disconnecting' ? 'voice.call.disconnecting' : 'voice.call.connecting') });
         },
         onInterruption: () => {
           if (callEpoch !== epoch) return;
           lastSpeakingBinding = null; resetIdle(); onAudioLevel(0);
-          onStatus({ mode: 'elevenlabs', state: 'listening', active: true, message: 'El agente está escuchando.' });
+          onStatus({ mode: 'elevenlabs', state: 'listening', active: true, ...said('voice.call.listening') });
         },
         onMessage: (message) => {
           if (callEpoch !== epoch || typeof message?.message !== 'string' || !message.message.trim()) return;
@@ -119,11 +135,11 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
           if (callEpoch !== epoch) return;
           if (mode === 'speaking') { const pending = confirm.getState(); lastSpeakingBinding = pending?.state === 'armed' ? pending : null; }
           if (mode === 'listening' && lastSpeakingBinding) { confirm.speechEnded(lastSpeakingBinding); lastSpeakingBinding = null; }
-          onStatus({ mode: 'elevenlabs', state: mode, active: true, message: mode === 'speaking' ? 'El agente está hablando.' : 'El agente está escuchando.' });
+          onStatus({ mode: 'elevenlabs', state: mode, active: true, ...said(mode === 'speaking' ? 'voice.call.speaking' : 'voice.call.listening') });
         }
       });
       if (callEpoch !== epoch) { await instance.endSession(); await release(value, callCsrf); return { ok: false, code: 'DISCONNECTED' }; }
-      conversation = instance; hardTimer = setTimeout(() => end('hard-cap'), Math.min(300_000, Number(value.hardCapMs) > 0 ? Number(value.hardCapMs) : 300_000)); resetIdle();
+      conversation = instance; toldLanguage = null; tellLanguage(instance); hardTimer = setTimeout(() => end('hard-cap'), Math.min(300_000, Number(value.hardCapMs) > 0 ? Number(value.hardCapMs) : 300_000)); resetIdle();
       muted = false; onMuted(false);
       audioTimer = setInterval(() => {
         if (callEpoch !== epoch || instance !== conversation) return;
@@ -137,10 +153,10 @@ export function createPersonalAgent({ tools, runTool, confirm, onStatus, onTrans
       const endedEpoch = await end('unavailable');
       if ((endedEpoch ?? callEpoch) !== epoch) return { ok: false, code: 'DISCONNECTED' };
       const code = /^[A-Z_]{3,80}$/u.test(error?.message || '') ? error.message : 'VOICE_VENDOR_UNAVAILABLE';
-      const message = code === 'OFFICIAL_SDK_UNAVAILABLE' ? 'No se pudo cargar el cliente oficial de ElevenLabs.' : code === 'GRANT_LIMIT' || code === 'DAILY_CALL_LIMIT' ? 'Límite de llamadas alcanzado. Intenta más tarde.' : code === 'PERSONAL_AGENT_NOT_CONFIGURED' ? 'Falta configurar el agente personal de ElevenLabs.' : code === 'CALL_ALREADY_ACTIVE' ? 'Ya existe una llamada personal activa.' : 'ElevenLabs no completó la conexión. Revisa el estado de la llamada.';
-      onStatus({ mode: 'elevenlabs', state: 'blocked', active: false, code, message });
+      const message = code === 'OFFICIAL_SDK_UNAVAILABLE' ? 'voice.call.sdkUnavailable' : code === 'GRANT_LIMIT' || code === 'DAILY_CALL_LIMIT' ? 'voice.call.limit' : code === 'PERSONAL_AGENT_NOT_CONFIGURED' ? 'voice.call.notConfigured' : code === 'CALL_ALREADY_ACTIVE' ? 'voice.call.alreadyActive' : 'voice.call.vendorFailed';
+      onStatus({ mode: 'elevenlabs', state: 'blocked', active: false, code, ...said(message) });
       return { ok: false, code };
     } finally { if (callEpoch === epoch) { starting = false; connectionAbort = null; } }
   }
-  return { start, end, setMuted, sendText, get muted() { return muted; }, get active() { return Boolean(conversation); }, get engaged() { return Boolean(conversation || grant || starting); }, destroy: () => end('disconnected') };
+  return { start, end, setMuted, sendText, get muted() { return muted; }, get active() { return Boolean(conversation); }, get engaged() { return Boolean(conversation || grant || starting); }, destroy: () => { stopLanguageWatch(); return end('disconnected'); } };
 }
