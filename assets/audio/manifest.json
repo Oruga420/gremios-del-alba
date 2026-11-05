@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "description": "Authoritative list of optional audio files for Gremios del Alba. Every file is optional: the game stays silent for any file that is not present.",
+  "format": "mp3 (44.1 kHz, 128 kbps recommended)",
+  "style": "Cozy hand-drawn fantasy RTS: warm, soft, organic, storybook; never harsh, gory or sci-fi.",
+  "languages": ["es", "en", "pt", "ja", "ar", "de", "fr"],
+  "sfx": [
+    { "id": "ui_click", "file": "sfx/ui_click.mp3", "duration_seconds": 0.5, "prompt": "Soft wooden button click, small warm tap on a carved wooden toggle, cozy fantasy game menu, clean, no reverb" },
+    { "id": "ui_open_panel", "file": "sfx/ui_open_panel.mp3", "duration_seconds": 0.8, "prompt": "Gentle parchment scroll unrolling with a soft paper swoosh, cozy fantasy game interface panel opening" },
+    { "id": "build_place", "file": "sfx/build_place.mp3", "duration_seconds": 1, "prompt": "Wooden stakes knocked into soft earth, a couple of light mallet taps, placing a building foundation in a cozy fantasy village" },
+    { "id": "build_complete", "file": "sfx/build_complete.mp3", "duration_seconds": 2, "prompt": "Final hammer strikes on timber followed by a short warm wooden chime, a cozy fantasy village building is finished" },
+    { "id": "train_complete", "file": "sfx/train_complete.mp3", "duration_seconds": 1.2, "prompt": "Short cheerful lute pluck with light footsteps on a wooden floor, a new villager steps out, cozy fantasy strategy game" },
+    { "id": "research_complete", "file": "sfx/research_complete.mp3", "duration_seconds": 2, "prompt": "Old book closing softly followed by a magical sparkling glimmer, a discovery in a cozy fantasy library" },
+    { "id": "age_up", "file": "sfx/age_up.mp3", "duration_seconds": 3.5, "prompt": "Warm triumphant fanfare of horns and soft bells rising, a fantasy village enters a new age at dawn, storybook feel" },
+    { "id": "gather_wood", "file": "sfx/gather_wood.mp3", "duration_seconds": 1, "prompt": "Two light axe chops into a tree trunk with small wood splinters, outdoors in a gentle forest, cozy and soft" },
+    { "id": "gather_stone", "file": "sfx/gather_stone.mp3", "duration_seconds": 1, "prompt": "Two light pickaxe taps on rock with small pebbles falling, outdoor quarry, soft and cozy fantasy" },
+    { "id": "sword_hit", "file": "sfx/sword_hit.mp3", "duration_seconds": 0.6, "prompt": "Light sword clash on a wooden shield, short metallic ring, stylized fantasy combat, not gory" },
+    { "id": "arrow_shot", "file": "sfx/arrow_shot.mp3", "duration_seconds": 0.6, "prompt": "Bowstring twang and an arrow whooshing away, light and crisp, fantasy archer" },
+    { "id": "fireball", "file": "sfx/fireball.mp3", "duration_seconds": 1.2, "prompt": "Magical fireball whoosh ending in a soft fiery burst with crackling embers, storybook fantasy spell" },
+    { "id": "heal", "file": "sfx/heal.mp3", "duration_seconds": 1.2, "prompt": "Gentle healing spell, soft shimmering chimes and a warm airy glow, calm fantasy magic" },
+    { "id": "conversion", "file": "sfx/conversion.mp3", "duration_seconds": 1.8, "prompt": "Mystical choir hum with a soft magical swell and bell, a soldier is persuaded to join another side, fantasy" },
+    { "id": "unit_death", "file": "sfx/unit_death.mp3", "duration_seconds": 0.8, "prompt": "Soft thud of a figure falling onto grass with a faint cloth rustle, stylized and non-violent, fantasy strategy game" },
+    { "id": "building_destroyed", "file": "sfx/building_destroyed.mp3", "duration_seconds": 2.2, "prompt": "Wooden building collapsing, timber creaking and cracking then falling into a dusty rubble pile, fantasy village, not too loud" },
+    { "id": "victory", "file": "sfx/victory.mp3", "duration_seconds": 4, "prompt": "Joyful orchestral victory fanfare with horns, strings and bells, warm storybook fantasy ending" },
+    { "id": "defeat", "file": "sfx/defeat.mp3", "duration_seconds": 4, "prompt": "Melancholic slow descending strings and a soft low horn, gentle fantasy defeat, sad but not dark" },
+    { "id": "under_attack_horn", "file": "sfx/under_attack_horn.mp3", "duration_seconds": 2, "prompt": "Distant medieval war horn blowing an alarm call twice over a valley, fantasy village warning" }
+  ],
+  "voice": {
+    "file_pattern": "voice/{lang}/{id}.mp3",
+    "model": "eleven_multilingual_v2",
+    "voice_hint": {
+      "es": "Narrador cálido, voz media, castellano neutro, tono de cuento épico amable",
+      "en": "Warm storyteller announcer, mid pitch, neutral accent, friendly epic tone",
+      "pt": "Narrador caloroso, português do Brasil, tom épico e amigável",
+      "ja": "落ち着いた温かいナレーター、ファンタジーゲームのアナウンス調",
+      "ar": "راوٍ دافئ بالعربية الفصحى، نبرة ملحمية ودودة",
+      "de": "Warmer Erzähler, Hochdeutsch, freundlich-epischer Ton",
+      "fr": "Narrateur chaleureux, français standard, ton épique et bienveillant"
+    },
+    "lines": [
+      { "id": "match_start", "text": { "es": "¡Despierta el Alba!", "en": "The Dawn awakens!", "pt": "A Aurora desperta!", "ja": "夜明けの時だ！", "ar": "لقد أشرق الفجر!", "de": "Die Morgenröte erwacht!", "fr": "L'Aube se lève !" } },
+      { "id": "building_complete", "text": { "es": "Construcción terminada.", "en": "Construction complete.", "pt": "Construção concluída.", "ja": "建設完了。", "ar": "اكتمل البناء.", "de": "Bau abgeschlossen.", "fr": "Construction terminée." } },
+      { "id": "unit_ready", "text": { "es": "Unidad lista.", "en": "Unit ready.", "pt": "Unidade pronta.", "ja": "ユニット準備完了。", "ar": "الوحدة جاهزة.", "de": "Einheit bereit.", "fr": "Unité prête." } },
+      { "id": "research_complete", "text": { "es": "Investigación completada.", "en": "Research complete.", "pt": "Pesquisa concluída.", "ja": "研究完了。", "ar": "اكتمل البحث.", "de": "Forschung abgeschlossen.", "fr": "Recherche terminée." } },
+      { "id": "age_up", "text": { "es": "¡Una nueva era comienza!", "en": "A new age begins!", "pt": "Uma nova era começa!", "ja": "新たな時代の幕開けだ！", "ar": "بدأ عصر جديد!", "de": "Ein neues Zeitalter beginnt!", "fr": "Une nouvelle ère commence !" } },
+      { "id": "under_attack", "text": { "es": "¡Nos atacan!", "en": "We are under attack!", "pt": "Estamos sob ataque!", "ja": "敵襲だ！", "ar": "نحن نتعرض للهجوم!", "de": "Wir werden angegriffen!", "fr": "Nous sommes attaqués !" } },
+      { "id": "unit_converted", "text": { "es": "Un enemigo se une a nosotros.", "en": "An enemy joins our cause.", "pt": "Um inimigo se juntou a nós.", "ja": "敵が我らに加わった。", "ar": "انضم إلينا أحد الأعداء.", "de": "Ein Feind läuft zu uns über.", "fr": "Un ennemi nous rejoint." } },
+      { "id": "victory", "text": { "es": "¡Victoria del Alba!", "en": "Victory for the Dawn!", "pt": "Vitória da Aurora!", "ja": "夜明けの勝利だ！", "ar": "النصر للفجر!", "de": "Sieg für die Morgenröte!", "fr": "Victoire de l'Aube !" } },
+      { "id": "defeat", "text": { "es": "Nuestro gremio ha caído.", "en": "Our guild has fallen.", "pt": "Nossa guilda caiu.", "ja": "我らのギルドは敗れた。", "ar": "لقد سقطت نقابتنا.", "de": "Unsere Gilde ist gefallen.", "fr": "Notre guilde est tombée." } },
+      { "id": "population_full", "text": { "es": "Necesitamos más casas.", "en": "We need more houses.", "pt": "Precisamos de mais casas.", "ja": "家が足りない。", "ar": "نحتاج إلى مزيد من المنازل.", "de": "Wir brauchen mehr Häuser.", "fr": "Il nous faut plus de maisons." } },
+      { "id": "not_enough_resources", "text": { "es": "Recursos insuficientes.", "en": "Not enough resources.", "pt": "Recursos insuficientes.", "ja": "資源が足りない。", "ar": "الموارد غير كافية.", "de": "Nicht genug Rohstoffe.", "fr": "Ressources insuffisantes." } }
+    ]
+  }
+}

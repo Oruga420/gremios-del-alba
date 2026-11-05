@@ -1,6 +1,10 @@
 // Adapted concepts from installed promise-voice-agent's framework-free confirm store.
 // Contract correction: missing speech-end CANCELS; it can never auto-start execution.
+import { phrase } from './i18n.js';
+
 const PENDING = new Set(['proposed', 'armed', 'countdown']);
+// Spanish `speak` plus its translatable key.
+const said = (code, key) => { const value = phrase(key); return { ok: false, code, speak: value.text, i18n: value.i18n }; };
 export const TERMINAL_PROPOSAL_STATES = ['done', 'failed', 'stopped', 'expired', 'superseded', 'invalidated'];
 
 export function createConfirmStore({ game, execute, now = Date.now, stopWindowMs = 4000, proposalTimeoutMs = 30_000, armedTimeoutMs = 10_000 }) {
@@ -43,9 +47,9 @@ export function createConfirmStore({ game, execute, now = Date.now, stopWindowMs
   }
   function tick() {
     if (!current || !PENDING.has(current.state)) return snapshot();
-    if (!matches(current)) return finish('invalidated', { ok: false, code: 'STALE_WORLD', speak: 'La partida cambió; cancelé la propuesta.' });
-    if (current.state === 'proposed' && now() >= current.expiresAt) return finish('expired', { ok: false, code: 'PROPOSAL_EXPIRED', speak: 'La propuesta venció sin confirmación.' });
-    if (current.state === 'armed' && now() >= current.armedAt + armedTimeoutMs) return finish('expired', { ok: false, code: 'SPEECH_END_MISSING', speak: 'No recibí el fin de la respuesta; cancelé la orden.' });
+    if (!matches(current)) return finish('invalidated', said('STALE_WORLD', 'voice.confirm.staleWorld'));
+    if (current.state === 'proposed' && now() >= current.expiresAt) return finish('expired', said('PROPOSAL_EXPIRED', 'voice.confirm.expired'));
+    if (current.state === 'armed' && now() >= current.armedAt + armedTimeoutMs) return finish('expired', said('SPEECH_END_MISSING', 'voice.confirm.speechEndMissing'));
     if (current.state === 'countdown' && now() >= current.stopWindowEndsAt) {
       const binding = { proposalId: current.proposalId, worldGeneration: current.worldGeneration, sessionEpoch: current.sessionEpoch };
       // Revalidate at the last synchronous boundary, then invoke only the engine command door.
@@ -54,8 +58,8 @@ export function createConfirmStore({ game, execute, now = Date.now, stopWindowMs
       current.state = 'executing';
       let result;
       try { result = execute(action, { ...binding, confirmationText: current.confirmationText, source: 'voice', originalPaused: lease?.original, ownsPause: Boolean(lease && generation() === lease.generation && world() === lease.world && world()?.state?.pauseRevision === lease.revision) }); }
-      catch { result = { ok: false, code: 'EXECUTION_FAILED', speak: 'La orden no se pudo ejecutar.' }; }
-      if (result && typeof result.then === 'function') return finish('failed', { ok: false, code: 'ASYNC_MUTATION_REJECTED', speak: 'La orden requiere un ejecutor síncrono validado.' });
+      catch { result = said('EXECUTION_FAILED', 'voice.confirm.executionFailed'); }
+      if (result && typeof result.then === 'function') return finish('failed', said('ASYNC_MUTATION_REJECTED', 'voice.confirm.asyncRejected'));
       return finish(result?.ok ? 'done' : 'failed', result);
     }
     return snapshot();
@@ -74,8 +78,8 @@ export function createConfirmStore({ game, execute, now = Date.now, stopWindowMs
   }
   return {
     propose, arm, speechEnded, tick,
-    stop(proposalId = current?.proposalId) { if (current?.proposalId !== proposalId) return null; return finish('stopped', { ok: false, code: 'STOPPED', speak: 'Orden cancelada.' }); },
-    invalidate(reason = 'SESSION_CHANGED') { finish('invalidated', { ok: false, code: reason, speak: 'Cancelé la propuesta pendiente.' }); epoch++; restore(); },
+    stop(proposalId = current?.proposalId) { if (current?.proposalId !== proposalId) return null; return finish('stopped', said('STOPPED', 'voice.confirm.stopped')); },
+    invalidate(reason = 'SESSION_CHANGED') { finish('invalidated', said(reason, 'voice.confirm.invalidated')); epoch++; restore(); },
     getState: snapshot, get sessionEpoch() { return epoch; }, get pending() { return Boolean(current && PENDING.has(current.state)); }, get state() { return current?.state || 'idle'; }, getHistory: () => structuredClone(history),
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     destroy() { this.invalidate('DISCONNECTED'); listeners.clear(); }

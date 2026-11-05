@@ -1,19 +1,33 @@
 import { World } from './game/world.js';
-import { MAPS, GUILDS, UNITS, BUILDINGS, TECHNOLOGIES, AGE_NAMES, AGE_COSTS } from './game/data.js';
+import { MAPS, GUILDS, UNITS, BUILDINGS, TECHNOLOGIES, AGE_COSTS } from './game/data.js';
 import { GameRenderer, drawMenuLandscape } from './game/renderer.js';
 import { createRenderGate } from './game/render-gate.js';
+import { installAudio } from './audio/index.js';
+import { t, getLocale, onLocaleChange, applyDocumentLocale, mountLanguageSelects, formatNumber, localize, localeInfo } from './i18n/index.js';
+import { unitName, buildingName, techName, resourceName, resourceShort, guildText, mapText, kindName, entityName } from './i18n/names.js';
 
 const $ = selector => document.querySelector(selector);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[character]);
 const icon = name => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
-const number = value => Math.floor(value || 0).toLocaleString('es-ES');
-const costText = cost => Object.entries(cost || {}).filter(([,n])=>n).map(([key,value])=>`${number(value)} ${ {wood:'mad.',food:'alim.',gold:'oro',stone:'pied.'}[key] || key }`).join(' · ');
-const names = {wood:'Madera',food:'Alimento',gold:'Oro',stone:'Piedra',fish:'Pesca'};
-const orderNames = {idle:'Sin tarea',move:'En marcha',gather:'Recolectando',build:'Construyendo',repair:'Reparando',attack:'En combate',attack_move:'Avance ofensivo',defend:'Defendiendo',cast:'Canalizando',convert:'Convirtiendo',return:'Depositando',deposit:'Depositando'};
-const formationNames = {line:'Línea',box:'Caja',staggered:'Escalonada'};
-const queueName = item => item.type==='age'?`Era ${['','I','II','III','IV'][Number(item.kind)]}`:(UNITS[item.kind]?.name||TECHNOLOGIES[item.kind]?.name||TECHNOLOGIES[item.technologyId]?.name||'Orden');
+const number = value => formatNumber(value);
+const numeral = age => ['','I','II','III','IV'][Number(age)] ?? '';
+const upper = text => String(text ?? '').toLocaleUpperCase(getLocale());
+const lower = text => String(text ?? '').toLocaleLowerCase(getLocale());
+const costParts = cost => Object.entries(cost || {}).filter(([,n])=>n).map(([key,value])=>t('app.common.cost',{amount:number(value),resource:resourceShort(key)}));
+const costText = cost => costParts(cost).join(' · ');
+// Same text as costText, but each "amount resource" stays together so a long cost wraps between items, never inside one.
+const costMarkup = cost => costParts(cost).map((part,index,all)=>`<span>${escapeHTML(part)}${index<all.length-1?' ·':''}</span>`).join(' ');
+const decimal = value => { try { return new Intl.NumberFormat(localeInfo().number,{maximumFractionDigits:1}).format(value); } catch { return String(value); } };
+const RESOURCE_KINDS = new Set(['wood','food','gold','stone','fish']);
+const isResourceKind = kind => RESOURCE_KINDS.has(kind);
+const ORDER_TYPES = new Set(['idle','move','gather','build','repair','attack','attack_move','defend','cast','convert','return','deposit']);
+const FORMATIONS = ['line','box','staggered'];
+const formationName = kind => t(`app.formation.${kind}`);
+const queueName = item => item.type==='age'?t('app.common.ageNumeral',{numeral:numeral(item.kind)}):(UNITS[item.kind]?unitName(item.kind):TECHNOLOGIES[item.kind]?techName(item.kind):TECHNOLOGIES[item.technologyId]?techName(item.technologyId):t('app.queue.fallback'));
 const queueProgress = item => Math.max(0,Math.min(1,item.progress??1-(item.remaining||0)/(item.duration||1)));
-const guildLabels = {alba:['Alba','Economía','star'],espina:['Espina','Bosque y sigilo','leaf'],bastion:['Bastión','Acero y honor','shield'],eclipse:['Eclipse','Saber y magia','moon']};
+const guildEmblems = {alba:'star',espina:'leaf',bastion:'shield',eclipse:'moon'};
+/** A window.game result: Spanish .message stays stable for the voice layer and tests; i18n carries the key for display. */
+const appResult = (ok,key,params,spanishParams=params) => ({ok,message:t(key,spanishParams,'es'),i18n:{key,params}});
 const categoryFor = definition => definition.category==='research'||definition.category==='monument'?'knowledge':definition.category==='city'?'economy':definition.category;
 let world = null, renderer = null, selectedIds = [], worldGeneration = 0, currentTab = 'economy';
 let placement = null, attackMove = false, targetedSpell = null, convertTarget = false, hovered = null, lastHud = 0, lastMinimap = 0, accumulator = 0, lastFrame = 0;
@@ -33,10 +47,10 @@ function queueKey(entry){
 
 function buildMenu() {
   $('#guild-options').innerHTML = GUILDS.map((guild,index)=>{
-    const [label,specialty,emblem]=guildLabels[guild.id];
-    return `<label class="guild-option" style="--guild-color:${guild.color}" title="${escapeHTML(guild.description)}"><input type="radio" name="guild" value="${guild.id}" ${index===0?'checked':''} data-action="choose-guild"><span class="guild-portrait"><img src="/assets/portraits/${guild.id}.png" alt="">${icon(emblem)}</span><strong>${label}</strong><small>${specialty}</small></label>`;
+    const emblem=guildEmblems[guild.id]||'star';
+    return `<label class="guild-option" style="--guild-color:${guild.color}" title="${escapeHTML(guildText(guild.id,'description'))}"><input type="radio" name="guild" value="${guild.id}" ${index===0?'checked':''} data-action="choose-guild"><span class="guild-portrait"><img src="/assets/portraits/${guild.id}.png" alt="">${icon(emblem)}</span><strong>${escapeHTML(guildText(guild.id,'label'))}</strong><small>${escapeHTML(guildText(guild.id,'specialty'))}</small></label>`;
   }).join('');
-  $('#map-options').innerHTML=MAPS.map((map,index)=>`<label class="map-option" style="--map-color:${map.color}" title="${escapeHTML(map.description)}"><input type="radio" name="map" value="${map.id}" ${index===0?'checked':''} data-action="choose-map"><canvas width="140" height="90" data-map-preview="${map.id}" aria-hidden="true"></canvas><span>${escapeHTML(map.name)}</span></label>`).join('');
+  $('#map-options').innerHTML=MAPS.map((map,index)=>`<label class="map-option" style="--map-color:${map.color}" title="${escapeHTML(mapText(map.id,'description'))}"><input type="radio" name="map" value="${map.id}" ${index===0?'checked':''} data-action="choose-map"><canvas width="140" height="90" data-map-preview="${map.id}" aria-hidden="true"></canvas><span>${escapeHTML(mapText(map.id,'name'))}</span></label>`).join('');
   updateMapDescription();
   for(const [index,map] of MAPS.entries()){
     const canvas=document.querySelector(`[data-map-preview="${map.id}"]`),c=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
@@ -57,13 +71,37 @@ function buildMenu() {
   });
   $('#match-form').addEventListener('change',updateMapDescription);
 }
-function updateMapDescription(){const selected=document.querySelector('[name="map"]:checked');$('#map-description').textContent=MAPS.find(map=>map.id===selected?.value)?.description||MAPS[0].description;}
+function updateMapDescription(){const selected=document.querySelector('[name="map"]:checked'),map=MAPS.find(entry=>entry.id===selected?.value)||MAPS[0];$('#map-description').textContent=mapText(map.id,'description');}
+/** Re-labels the start menu in place, so the chosen guild/map and the drawn previews survive a language change. */
+function localizeMenu(){
+  for(const input of document.querySelectorAll('#guild-options input[name="guild"]')){
+    const label=input.closest('.guild-option');if(!label)continue;
+    label.title=guildText(input.value,'description');
+    const strong=label.querySelector('strong'),small=label.querySelector('small');
+    if(strong)strong.textContent=guildText(input.value,'label');
+    if(small)small.textContent=guildText(input.value,'specialty');
+  }
+  for(const input of document.querySelectorAll('#map-options input[name="map"]')){
+    const label=input.closest('.map-option');if(!label)continue;
+    label.title=mapText(input.value,'description');
+    const name=label.querySelector('span');if(name)name.textContent=mapText(input.value,'name');
+  }
+  updateMapDescription();
+}
+const worldMapName = () => MAPS.some(map=>map.id===world?.state.mapId)?mapText(world.state.mapId,'name'):null;
 
 function newMatch(options={}) {
   const next = new World(options);
   installWorld(next);
-  announce(`La crónica comienza en ${MAPS.find(map=>map.id===world.state.mapId)?.name||'estas tierras'}.`);
+  const mapName=worldMapName();
+  announce(mapName?t('app.menu.matchStart',{map:mapName}):t('app.menu.matchStartUnknown'));
   return {ok:true,worldGeneration};
+}
+function updateWorldCaption(){
+  if(!world)return;
+  $('#world-map-name').textContent=worldMapName()||world.state.mapId;
+  $('#world-mode').textContent=t(world.state.mode==='peaceful'?'app.world.mode.peaceful':'app.world.mode.conquest');
+  $('#map-size').textContent=t('app.world.mapSize',{width:world.state.map.width,height:world.state.map.height});
 }
 function installWorld(next) {
   worldGeneration++;
@@ -77,20 +115,24 @@ function installWorld(next) {
   renderer.resize();
   const first=world.state.buildings.find(entity=>entity.team===1&&entity.kind==='guildhall');
   if(first){selectedIds=[first.id];renderer.centerOn(first.x+5.5,first.y+6.5);}
-  $('#world-map-name').textContent=MAPS.find(map=>map.id===world.state.mapId)?.name||world.state.mapId;
-  $('#world-mode').textContent=world.state.mode==='peaceful'?'CRÓNICA PACÍFICA · SIN NIEBLA':'CONQUISTA · MUNDO EXPLORADO';
-  $('#map-size').textContent=`${world.state.map.width} × ${world.state.map.height}`;
+  updateWorldCaption();
   $('#winner-dialog').close();closePanel();invalidateHUD();refreshHUD();$('#world-canvas').focus({preventScroll:true});
   window.dispatchEvent(new CustomEvent('gremios:worldchange',{detail:{worldGeneration}}));
 }
 function execute(type,args={}) {
-  if(!world)return {ok:false,message:'Comienza una partida primero.'};
+  if(!world)return appResult(false,'app.error.noMatch');
   const result=world.command(type,args);
-  if(result.message)announce(result.message,!result.ok);
+  if(result.message||result.i18n)announce(localize(result),!result.ok);
   invalidateHUD();refreshHUD();
   return result;
 }
 function invalidateHUD(){renderRevision++;selectionSignature='';catalogSignature='';panelSignature='';}
+// The "›" cue only shows while the catalog can still scroll further (scrollLeft is negative in RTL).
+function updateCatalogCue(){
+  const catalog=$('#action-catalog'),cue=$('.catalog-scroll-cue');if(!catalog||!cue)return;
+  const room=catalog.scrollWidth-catalog.clientWidth;
+  cue.hidden=room<=1||Math.abs(catalog.scrollLeft)>=room-1;
+}
 function announce(message,error=false){
   if(!message)return;
   $('#screen-reader-status').textContent=message;
@@ -109,44 +151,47 @@ function selectedWorkers(){return ownUnits().filter(entity=>entity.kind==='villa
 function selectedProducer(){return selectedEntities().find(entity=>entity.team===1&&BUILDINGS[entity.kind]);}
 function formationFor(units=ownUnits()){
   const kind=units[0]?.formation;
-  return Object.hasOwn(formationNames,kind)&&units.every(unit=>unit.formation===kind)?kind:'box';
+  return FORMATIONS.includes(kind)&&units.every(unit=>unit.formation===kind)?kind:'box';
 }
 function chooseFormation(kind){
-  if(!Object.hasOwn(formationNames,kind))return {ok:false,message:'Formación desconocida.'};
+  if(!FORMATIONS.includes(kind))return appResult(false,'app.error.unknownFormation');
   return execute('formation',{unitIds:ownUnits().map(unit=>unit.id),kind});
 }
 function orderStatus(entity){
-  if(entity.order?.waiting==='dropoff')return 'Sin almacén accesible';
-  if(entity.order?.waiting==='resource')return 'Sin recurso accesible';
-  if(entity.order?.type==='gather'&&entity.order.phase==='deliver')return 'Depositando';
-  return orderNames[entity.order?.type]||'Preparado';
+  if(entity.order?.waiting==='dropoff')return t('app.order.noDropoff');
+  if(entity.order?.waiting==='resource')return t('app.order.noResource');
+  if(entity.order?.type==='gather'&&entity.order.phase==='deliver')return t('app.order.deposit');
+  return ORDER_TYPES.has(entity.order?.type)?t(`app.order.${entity.order.type}`):t('app.order.ready');
 }
 function cargoStatus(entities){
   const cargo=entities.reduce((out,unit)=>{if(unit.carry?.amount>0)out[unit.carry.kind]=(out[unit.carry.kind]||0)+unit.carry.amount;return out;},{});
-  return Object.keys(cargo).length?`Carga: ${Object.entries(cargo).map(([kind,amount])=>`${number(amount)} ${names[kind]||kind}`).join(' · ')}`:'Sin carga';
+  return Object.keys(cargo).length?t('app.cargo.some',{items:Object.entries(cargo).map(([kind,amount])=>t('app.common.amount',{amount:number(amount),resource:resourceName(kind)})).join(' · ')}):t('app.cargo.none');
 }
 function rallyStatus(entity){
   const target=world.getEntity(entity.rally?.targetId);
-  return target?`Reunión: ${target.kind==='farm'?'Huerto':names[target.kind]||target.name||target.kind}`:'Reunión: terreno';
+  return target?t('app.rally.target',{target:target.kind==='farm'?t('app.rally.farm'):isResourceKind(target.kind)?resourceName(target.kind):entityName(target)||target.kind}):t('app.rally.ground');
 }
 function enough(cost){const resources=world?.summary(1)?.resources||{};return Object.entries(cost||{}).every(([key,amount])=>(resources[key]||0)>=amount);}
 function focusEntity(id){const entity=world.getEntity(id);if(!entity)return;select([id]);renderer.centerOn(entity.x,entity.y);closePanel();}
 
 function setPlacement(kind){
-  if(!BUILDINGS[kind])return {ok:false,message:'Edificio desconocido.'};
-  if(!selectedWorkers().length){announce('Selecciona uno o varios aldeanos para construir.',true);return {ok:false,message:'Selecciona aldeanos.'};}
-  if(world.summary(1).age<BUILDINGS[kind].age){const message=`${BUILDINGS[kind].name} necesita la era ${['','I','II','III','IV'][BUILDINGS[kind].age]}.`;announce(message,true);return {ok:false,message};}
-  if(!enough(BUILDINGS[kind].cost)){const message=`Faltan recursos para ${BUILDINGS[kind].name}. ${costText(BUILDINGS[kind].cost)}.`;announce(message,true);return {ok:false,message};}
+  if(!BUILDINGS[kind])return appResult(false,'app.error.unknownBuilding');
+  if(!selectedWorkers().length){announce(t('app.placement.selectVillagers'),true);return appResult(false,'app.error.selectVillagers');}
+  const definition=BUILDINGS[kind];
+  if(world.summary(1).age<definition.age){const result=appResult(false,'app.placement.needsAge',{building:{kind},numeral:numeral(definition.age)},{building:definition.name,numeral:numeral(definition.age)});announce(localize(result),true);return result;}
+  if(!enough(definition.cost)){const result=appResult(false,'app.placement.missingResources',{building:{kind},cost:costText(definition.cost)},{building:definition.name,cost:costTextSpanish(definition.cost)});announce(localize(result),true);return result;}
   placement={kind,x:0,y:0,visible:false};attackMove=false;targetedSpell=null;convertTarget=false;
   $('#world-canvas').style.cursor='crosshair';refreshPlacementHint();invalidateHUD();refreshHUD();
-  return {ok:true,message:`Elige el lugar para ${BUILDINGS[kind].name}.`};
+  return appResult(true,'app.placement.choosePlace',{building:{kind}},{building:definition.name});
 }
+function costTextSpanish(cost){return Object.entries(cost||{}).filter(([,n])=>n).map(([key,value])=>t('app.common.cost',{amount:formatNumber(value,'es'),resource:t(`data.resourceShort.${key}`,null,'es')},'es')).join(' · ');}
 function refreshPlacementHint(){
   const hint=$('#placement-hint');hint.hidden=!placement&&!attackMove&&!targetedSpell&&!convertTarget;
-  if(placement)hint.innerHTML=`<b>${escapeHTML(BUILDINGS[placement.kind].name)}</b> · ${['wall','palisade'].includes(placement.kind)?'Arrastra para trazar una línea':'Haz clic para construir'} · Esc para cancelar`;
-  else if(targetedSpell)hint.textContent=`${targetedSpell==='heal'?'Bendición sanadora':'Bola de fuego'} · Haz clic en el destino · Esc para cancelar`;
-  else if(convertTarget)hint.textContent='Conversión · Haz clic en una unidad rival · Esc para cancelar';
-  else if(attackMove)hint.textContent='Avance ofensivo · Haz clic en el destino · Esc para cancelar';
+  const cancel=t('app.hint.escCancel');
+  if(placement)hint.innerHTML=`<b>${escapeHTML(buildingName(placement.kind))}</b> · ${escapeHTML(t(['wall','palisade'].includes(placement.kind)?'app.hint.dragLine':'app.hint.clickBuild'))} · ${escapeHTML(cancel)}`;
+  else if(targetedSpell)hint.textContent=`${targetedSpell==='heal'?t('app.hint.healSpell'):t('app.common.fireball')} · ${t('app.hint.clickTarget')} · ${cancel}`;
+  else if(convertTarget)hint.textContent=`${t('app.common.conversion')} · ${t('app.hint.clickRival')} · ${cancel}`;
+  else if(attackMove)hint.textContent=`${t('app.common.attackMove')} · ${t('app.hint.clickTarget')} · ${cancel}`;
 }
 function cancelTargeting(){placement=null;attackMove=false;targetedSpell=null;convertTarget=false;pointer=null;dragRect=null;$('#world-canvas').style.cursor='default';refreshPlacementHint();invalidateHUD();}
 function canPlace(kind,x,y){
@@ -169,13 +214,13 @@ function validPlacement(){
 function refreshHUD(){
   if(!world||menuVisible)return;
   const summary=world.summary(1);
-  $('#resources').innerHTML=['wood','food','gold','stone'].map(resource=>`<div class="resource" data-resource="${resource}" title="${names[resource]}">${icon(resource)}<strong>${number(summary.resources?.[resource])}</strong><small>${names[resource].toUpperCase()}</small></div>`).join('');
-  $('#population').innerHTML=`${icon('people')}<strong>${number(summary.population)} / ${number(summary.capacity)}${summary.reservedPopulation?` <span class="reserved">+${summary.reservedPopulation}</span>`:''}</strong><small>HABITANTES · MÁX. 1.000</small>`;
+  $('#resources').innerHTML=['wood','food','gold','stone'].map(resource=>`<div class="resource" data-resource="${resource}" title="${escapeHTML(resourceName(resource))}">${icon(resource)}<strong>${number(summary.resources?.[resource])}</strong><small>${escapeHTML(upper(resourceName(resource)))}</small></div>`).join('');
+  $('#population').innerHTML=`${icon('people')}<strong>${number(summary.population)} / ${number(summary.capacity)}${summary.reservedPopulation?` <span class="reserved">+${summary.reservedPopulation}</span>`:''}</strong><small>${escapeHTML(t('app.hud.populationCaption'))}</small>`;
   const age=summary.age||1;
-  $('#age-label').textContent=`ERA ${['','I','II','III','IV'][age]} · ${(AGE_NAMES[age]||'Fundación').replace(/^Era (de |del |de las |de los )/,'').toUpperCase()}`;
+  $('#age-label').textContent=upper(t('app.hud.age',{numeral:numeral(age),name:t([1,2,3,4].includes(age)?`app.hud.ageShort.${age}`:'app.hud.ageShort.fallback')}));
   $('#idle-count').textContent=summary.idleVillagers||0;
   const seconds=Math.floor(world.state.time||0);$('#game-time').textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
-  const pause=$('[data-action="pause"]');pause.innerHTML=icon(world.state.paused?'play':'pause');pause.setAttribute('aria-label',world.state.paused?'Continuar':'Pausar');
+  const pause=$('[data-action="pause"]');pause.innerHTML=icon(world.state.paused?'play':'pause');pause.setAttribute('aria-label',t(world.state.paused?'app.hud.resume':'app.hud.pause'));
   $('[data-action="speed"]').textContent=`${world.state.speed||1}×`;$('#pause-banner').hidden=!world.state.paused;
   $('#zoom-level').textContent=`${Math.round(renderer.camera.zoom*100)}%`;
   selectedIds=selectedIds.filter(id=>world.getEntity(id)?.hp!==0&&world.getEntity(id));
@@ -184,8 +229,8 @@ function refreshHUD(){
   if(signature!==selectionSignature){selectionSignature=signature;renderSelection(entities,summary);}
   updateSelectionProgress(entities);
   const catalogKey=JSON.stringify([selectedIds,currentTab,summary.age,summary.resources,world.state.teams?.[1]?.upgrades,first?.queue?.map(queueKey),first?.progress>=1,placement?.kind]);
-  if(catalogKey!==catalogSignature){catalogSignature=catalogKey;renderCatalog(entities,summary);}
-  $('#selection-orders').textContent=placement?`Construyendo: ${BUILDINGS[placement.kind].name}`:first?(UNITS[first.kind]?`${entities.length>1?`${entities.length} unidades · `:''}${orderStatus(first)} · ${formationNames[formationFor()]} · Clic derecho para ordenar`:BUILDINGS[first.kind]?`${rallyStatus(first)} · Clic derecho en terreno o recurso`:`${names[first.kind]||first.kind} · Clic derecho con aldeanos para recolectar`):'Selecciona un habitante para comenzar.';
+  if(catalogKey!==catalogSignature){catalogSignature=catalogKey;renderCatalog(entities,summary);updateCatalogCue();}
+  $('#selection-orders').textContent=placement?t('app.hud.orders.placing',{building:buildingName(placement.kind)}):first?(UNITS[first.kind]?t(entities.length>1?'app.hud.orders.unit.other':'app.hud.orders.unit.one',{count:entities.length,status:orderStatus(first),formation:formationName(formationFor())}):BUILDINGS[first.kind]?t('app.hud.orders.building',{rally:rallyStatus(first)}):t('app.hud.orders.resource',{resource:isResourceKind(first.kind)?resourceName(first.kind):first.kind})):t('app.hud.orders.empty');
   if(currentPanel==='roster')updateRoster();
   if(world.state.winner!==null&&world.state.winner!==undefined&&!winnerShown)showWinner();
 }
@@ -202,26 +247,27 @@ function portrait(entity){
 function renderSelection(entities,summary){
   const panel=$('#selection-panel');
   displayedQueueEntries.clear();
-  if(!entities.length){panel.innerHTML=`<div class="selection-empty"><div class="selection-crest">${icon('star')}</div><h3>Tu historia comienza aquí</h3><p>Selecciona un habitante o edificio.<br>Arrastra para reunir a tu gremio.</p></div>`;return;}
+  if(!entities.length){panel.innerHTML=`<div class="selection-empty"><div class="selection-crest">${icon('star')}</div><h3>${escapeHTML(t('app.selection.empty.title'))}</h3><p>${escapeHTML(t('app.selection.empty.line1'))}<br>${escapeHTML(t('app.selection.empty.line2'))}</p></div>`;return;}
   const entity=entities[0],definition=UNITS[entity.kind]||BUILDINGS[entity.kind],isUnit=!!UNITS[entity.kind],own=entity.team===1;
-  if(!definition){panel.innerHTML=`<div class="selection-empty"><div class="selection-crest">${icon(entity.kind==='fish'?'food':entity.kind)}</div><h3>${names[entity.kind]||entity.kind}</h3><p>${number(entity.amount)} disponibles<br>Una riqueza de estas tierras.</p></div>`;return;}
-  const title=entities.length>1?`${entities.length} habitantes`:entity.name||definition.name;
-  const order=isUnit?orderStatus(entity):(entity.progress<1?'En construcción':own?'Edificio de tu gremio':'Edificio rival');
-  panel.innerHTML=`<div class="selected-identity"><div class="entity-portrait">${portrait(entity)}</div><div class="selected-name"><small>${own?'TU GREMIO':'GREMIO RIVAL'} · ${isUnit?'HABITANTE':'EDIFICIO'}</small><h3 title="${escapeHTML(title)}">${escapeHTML(title)}</h3><span>${escapeHTML(entities.length>1?'Selección múltiple':definition.name)}</span>${isUnit&&own&&entities.length===1?`<br><button class="rename-mini" data-action="rename" data-unit-id="${entity.id}">Cambiar nombre</button>`:''}</div></div>
+  if(!definition){panel.innerHTML=`<div class="selection-empty"><div class="selection-crest">${icon(entity.kind==='fish'?'food':entity.kind)}</div><h3>${escapeHTML(isResourceKind(entity.kind)?resourceName(entity.kind):entity.kind)}</h3><p>${escapeHTML(t('app.common.available',{amount:number(entity.amount)}))}<br>${escapeHTML(t('app.selection.resourceFlavor'))}</p></div>`;return;}
+  const title=entities.length>1?t('app.selection.multipleTitle',{count:entities.length}):entityName(entity)||kindName(entity.kind);
+  const order=isUnit?orderStatus(entity):t(entity.progress<1?'app.selection.underConstruction':own?'app.selection.ownBuilding':'app.selection.rivalBuilding');
+  const percent=value=>t('app.common.percent',{value:Math.round(value*100)});
+  panel.innerHTML=`<div class="selected-identity"><div class="entity-portrait">${portrait(entity)}</div><div class="selected-name"><small>${escapeHTML(t('app.selection.identity',{team:t(own?'app.selection.team.own':'app.selection.team.rival'),type:t(isUnit?'app.selection.type.unit':'app.selection.type.building')}))}</small><h3 title="${escapeHTML(title)}">${escapeHTML(title)}</h3><span>${escapeHTML(entities.length>1?t('app.selection.multiple'):kindName(entity.kind))}</span>${isUnit&&own&&entities.length===1?`<br><button class="rename-mini" data-action="rename" data-unit-id="${entity.id}">${escapeHTML(t('app.selection.rename'))}</button>`:''}</div></div>
     <div class="health-row"><div class="health-track"><i style="width:${Math.max(0,entity.hp/entity.maxHp*100)}%"></i></div><span>${number(entity.hp)} / ${number(entity.maxHp)}</span></div>
-    <div class="entity-stats"><span>${isUnit?'Ataque':'Estado'} <b>${isUnit?definition.attack||0:entity.progress<1?`${Math.round(entity.progress*100)}%`:'Listo'}</b></span><span>${isUnit?'Armadura':'Era'} <b>${isUnit?definition.armor||0:definition.age}</b></span>${isUnit?`<span>Alcance <b>${definition.range||1}</b></span>`:''}</div>
-    ${own&&isUnit?`<div class="unit-orders"><button data-action="attack-move" title="Avance ofensivo (A)">${icon('sword')}Atacar</button><button data-action="stop" title="Detener (S)">${icon('pause')}Detener</button><button data-action="defend" title="Defender (D)">${icon('shield')}Defender</button></div>`:''}
-    ${own&&isUnit?`<div class="formation-controls" role="group" aria-label="Formación de las unidades">${Object.entries(formationNames).map(([kind,label])=>`<button type="button" data-action="formation" data-formation="${kind}" aria-pressed="${formationFor()===kind}" title="Reagrupar en ${label.toLowerCase()}"><span class="formation-mark ${kind}" aria-hidden="true">${'<i></i>'.repeat(6)}</span>${label}</button>`).join('')}</div><div class="unit-activity"><span class="order-status">${escapeHTML(order)}</span><span class="cargo-status">${escapeHTML(cargoStatus(entities))}</span></div>`:''}
-    ${own&&!isUnit&&definition.trains?.length?`<div class="rally-status">${escapeHTML(rallyStatus(entity))}<small>Clic derecho en un recurso para enviar trabajadores nuevos.</small></div>`:''}
-    ${own&&!isUnit&&entity.kind==='gate'?`<div class="unit-orders"><button data-action="gate-toggle" data-building-id="${entity.id}">${icon('flag')}${entity.open?'Cerrar puerta':'Abrir puerta'}</button></div>`:''}
-    ${entity.progress<1?`<div class="progress-label">Construcción · ${Math.round(entity.progress*100)}%</div>`:''}
+    <div class="entity-stats"><span>${escapeHTML(t(isUnit?'app.selection.stat.attack':'app.selection.stat.state'))} <b>${isUnit?definition.attack||0:entity.progress<1?escapeHTML(percent(entity.progress)):escapeHTML(t('app.selection.stat.ready'))}</b></span><span>${escapeHTML(t(isUnit?'app.selection.stat.armor':'app.selection.stat.age'))} <b>${isUnit?definition.armor||0:definition.age}</b></span>${isUnit?`<span>${escapeHTML(t('app.selection.stat.range'))} <b>${escapeHTML(decimal(definition.range||1))}</b></span>`:''}</div>
+    ${own&&isUnit?`<div class="unit-orders"><button data-action="attack-move" title="${escapeHTML(t('app.selection.button.attackTitle'))}">${icon('sword')}${escapeHTML(t('app.selection.button.attack'))}</button><button data-action="stop" title="${escapeHTML(t('app.selection.button.stopTitle'))}">${icon('pause')}${escapeHTML(t('app.selection.button.stop'))}</button><button data-action="defend" title="${escapeHTML(t('app.selection.button.defendTitle'))}">${icon('shield')}${escapeHTML(t('app.selection.button.defend'))}</button></div>`:''}
+    ${own&&isUnit?`<div class="formation-controls" role="group" aria-label="${escapeHTML(t('app.formation.groupLabel'))}">${FORMATIONS.map(kind=>`<button type="button" data-action="formation" data-formation="${kind}" aria-pressed="${formationFor()===kind}" title="${escapeHTML(t(`app.formation.regroup.${kind}`))}"><span class="formation-mark ${kind}" aria-hidden="true">${'<i></i>'.repeat(6)}</span>${escapeHTML(formationName(kind))}</button>`).join('')}</div><div class="unit-activity"><span class="order-status">${escapeHTML(order)}</span><span class="cargo-status">${escapeHTML(cargoStatus(entities))}</span></div>`:''}
+    ${own&&!isUnit&&definition.trains?.length?`<div class="rally-status">${escapeHTML(rallyStatus(entity))}<small>${escapeHTML(t('app.selection.rallyHelp'))}</small></div>`:''}
+    ${own&&!isUnit&&entity.kind==='gate'?`<div class="unit-orders"><button data-action="gate-toggle" data-building-id="${entity.id}">${icon('flag')}${escapeHTML(t(entity.open?'app.common.gate.close':'app.common.gate.open'))}</button></div>`:''}
+    ${entity.progress<1?`<div class="progress-label">${escapeHTML(t('app.selection.constructionProgress',{percent:Math.round(entity.progress*100)}))}</div>`:''}
     ${entity.queue?.length?`<div class="training-queue">${entity.queue.map((item,index)=>renderQueueItem(item,index,entity.id)).join('')}</div>`:''}
-    ${entities.length>1?`<div class="selection-chips">${Object.entries(entities.reduce((out,e)=>{out[e.kind]=(out[e.kind]||0)+1;return out;},{})).map(([kind,count])=>`<span class="selection-chip">${count} ${escapeHTML(UNITS[kind]?.name||kind)}</span>`).join('')}</div>`:''}`;
+    ${entities.length>1?`<div class="selection-chips">${Object.entries(entities.reduce((out,e)=>{out[e.kind]=(out[e.kind]||0)+1;return out;},{})).map(([kind,count])=>`<span class="selection-chip">${escapeHTML(t('app.selection.chip',{count,name:UNITS[kind]?unitName(kind):kind}))}</span>`).join('')}</div>`:''}`;
 }
 function renderQueueItem(item,index,buildingId){
   const key=queueKey(item),label=queueName(item);
   displayedQueueEntries.set(key,item);
-  return `<div class="queue-item" title="${escapeHTML(label)}"><span class="queue-name">${escapeHTML(label.split(' ').slice(0,2).join(' '))}</span><button type="button" data-action="cancel-train" data-building-id="${buildingId}" data-queue-index="${index}" data-queue-key="${key}" aria-label="Cancelar ${escapeHTML(label)}">×</button><i class="queue-progress" data-queue-key="${key}" style="width:${queueProgress(item)*100}%"></i></div>`;
+  return `<div class="queue-item" title="${escapeHTML(label)}"><span class="queue-name">${escapeHTML(label.split(' ').slice(0,2).join(' '))}</span><button type="button" data-action="cancel-train" data-building-id="${buildingId}" data-queue-index="${index}" data-queue-key="${key}" aria-label="${escapeHTML(t('app.queue.cancel',{label}))}">×</button><i class="queue-progress" data-queue-key="${key}" style="width:${queueProgress(item)*100}%"></i></div>`;
 }
 function updateSelectionProgress(entities){
   const entity=entities[0],panel=$('#selection-panel');
@@ -234,8 +280,8 @@ function updateSelectionProgress(entities){
   if(cargo)cargo.textContent=cargoStatus(entities);
   if(entity.progress<1){
     const progress=Math.round(entity.progress*100),state=panel.querySelector('.entity-stats span:first-child b'),label=panel.querySelector('.progress-label');
-    if(state)state.textContent=`${progress}%`;
-    if(label)label.textContent=`Construcción · ${progress}%`;
+    if(state)state.textContent=t('app.common.percent',{value:progress});
+    if(label)label.textContent=t('app.selection.constructionProgress',{percent:progress});
   }
   for(const bar of panel.querySelectorAll('.queue-progress')){
     const entry=displayedQueueEntries.get(bar.dataset.queueKey);
@@ -246,7 +292,7 @@ function updateSelectionProgress(entities){
 function actionCard({action,kind,label,cost,age,disabled=false,active=false,iconName='home',buildingId='',technologyId='',extra=''}){
   const type=UNITS[kind]?'units':'buildings',record=renderer.atlas[type]?.[kind];
   const thumb=record&&renderer.images.has(record.image)?spritePreview(record):icon(iconName);
-  return `<button type="button" class="action-card${disabled?' locked':''}${active?' active':''}" data-action="${action}" data-kind="${kind||''}" data-building-id="${buildingId}" data-technology-id="${technologyId}" ${disabled?'aria-disabled="true"':''} title="${escapeHTML(`${label}${cost?` · ${costText(cost)}`:''}${age?` · Era ${age}`:''}${extra?` · ${extra}`:''}`)}"><span class="action-thumb">${thumb}</span><strong>${escapeHTML(label)}</strong><small>${escapeHTML(costText(cost)||extra||'')}</small>${age>1?`<span class="age-tag">${['','I','II','III','IV'][age]}</span>`:''}</button>`;
+  return `<button type="button" class="action-card${disabled?' locked':''}${active?' active':''}" data-action="${action}" data-kind="${kind||''}" data-building-id="${buildingId}" data-technology-id="${technologyId}" ${disabled?'aria-disabled="true"':''} title="${escapeHTML(`${label}${cost?` · ${costText(cost)}`:''}${age?` · ${t('app.common.ageNumber',{age})}`:''}${extra?` · ${extra}`:''}`)}"><span class="action-thumb">${thumb}</span><strong>${escapeHTML(label)}</strong><small>${costParts(cost).length?costMarkup(cost):escapeHTML(extra||'')}</small>${age>1?`<span class="age-tag">${numeral(age)}</span>`:''}</button>`;
 }
 function renderCatalog(entities,summary){
   const own=entities.filter(e=>e.team===1),building=own.find(e=>BUILDINGS[e.kind]),unit=own.find(e=>UNITS[e.kind]);
@@ -255,96 +301,119 @@ function renderCatalog(entities,summary){
   let cards=[];
   if(building&&entities.length===1&&building.progress>=1){
     const definition=BUILDINGS[building.kind];
-    for(const kind of definition.trains||[]){const def=UNITS[kind];cards.push(actionCard({action:`train:${kind}`,kind,label:def.name,cost:def.cost,age:def.age,disabled:summary.age<def.age||!enough(def.cost),buildingId:building.id,iconName:kind==='villager'?'hammer':'sword'}));}
-    if(building.kind==='guildhall'&&summary.age<4){const cost=AGE_COSTS[summary.age+1];cards.push(actionCard({action:'advance-age',label:`Era ${['','I','II','III','IV'][summary.age+1]}`,cost,iconName:'star',buildingId:building.id,disabled:!enough(cost),extra:'Avanzar la crónica'}));}
-    for(const technologyId of definition.technologies||[]){const def=TECHNOLOGIES[technologyId],done=world.state.teams[1].upgrades?.[technologyId];cards.push(actionCard({action:`research:${technologyId}`,label:def.name,cost:done?{}:def.cost,age:def.age,disabled:done||summary.age<def.age||!enough(def.cost),iconName:'book',buildingId:building.id,technologyId,extra:done?'Investigado':'Investigar'}));}
-    if(building.kind==='market')cards.push(actionCard({action:'market',label:'Intercambiar',iconName:'coins',extra:'Comprar / vender'}));
-    if(building.kind==='gate')cards.push(actionCard({action:'gate-toggle',label:building.open?'Cerrar puerta':'Abrir puerta',buildingId:building.id,iconName:'flag',extra:'Paso del gremio'}));
+    for(const kind of definition.trains||[]){const def=UNITS[kind];cards.push(actionCard({action:`train:${kind}`,kind,label:unitName(kind),cost:def.cost,age:def.age,disabled:summary.age<def.age||!enough(def.cost),buildingId:building.id,iconName:kind==='villager'?'hammer':'sword'}));}
+    if(building.kind==='guildhall'&&summary.age<4){const cost=AGE_COSTS[summary.age+1];cards.push(actionCard({action:'advance-age',label:t('app.common.ageNumeral',{numeral:numeral(summary.age+1)}),cost,iconName:'star',buildingId:building.id,disabled:!enough(cost),extra:t('app.catalog.advanceAge')}));}
+    for(const technologyId of definition.technologies||[]){const def=TECHNOLOGIES[technologyId],done=world.state.teams[1].upgrades?.[technologyId];cards.push(actionCard({action:`research:${technologyId}`,label:techName(technologyId),cost:done?{}:def.cost,age:def.age,disabled:done||summary.age<def.age||!enough(def.cost),iconName:'book',buildingId:building.id,technologyId,extra:t(done?'app.common.researched':'app.common.research')}));}
+    if(building.kind==='market')cards.push(actionCard({action:'market',label:t('app.catalog.trade'),iconName:'coins',extra:t('app.catalog.tradeExtra')}));
+    if(building.kind==='gate')cards.push(actionCard({action:'gate-toggle',label:t(building.open?'app.common.gate.close':'app.common.gate.open'),buildingId:building.id,iconName:'flag',extra:t('app.catalog.gatePassage')}));
   }
   if(unit&&entities.some(e=>['mage','healer','wizard'].includes(e.kind))){
-    if(own.some(e=>e.kind==='mage'))cards.push(actionCard({action:'cast-fireball',label:'Bola de fuego',iconName:'star',extra:'Elegir destino'}));
-    if(own.some(e=>e.kind==='healer'))cards.push(actionCard({action:'cast-heal',label:'Sanación',iconName:'leaf',extra:'Elegir destino'}));
-    if(own.some(e=>e.kind==='wizard'))cards.push(actionCard({action:'convert',label:'Conversión',iconName:'moon',extra:'Elegir rival'}));
+    if(own.some(e=>e.kind==='mage'))cards.push(actionCard({action:'cast-fireball',label:t('app.common.fireball'),iconName:'star',extra:t('app.common.chooseTarget')}));
+    if(own.some(e=>e.kind==='healer'))cards.push(actionCard({action:'cast-heal',label:t('app.catalog.heal'),iconName:'leaf',extra:t('app.common.chooseTarget')}));
+    if(own.some(e=>e.kind==='wizard'))cards.push(actionCard({action:'convert',label:t('app.common.conversion'),iconName:'moon',extra:t('app.catalog.chooseRival')}));
   }
   // Construction catalog stays visible next to a producer's contextual actions.
-  for(const [kind,definition] of definitions){cards.push(actionCard({action:`build:${kind}`,kind,label:definition.name,cost:definition.cost,age:definition.age,disabled:summary.age<definition.age||!enough(definition.cost),active:placement?.kind===kind,iconName:currentTab==='military'?'sword':currentTab==='defense'?'shield':currentTab==='knowledge'?'book':'home',extra:workers.length?'Construir':'Requiere aldeanos seleccionados'}));}
+  for(const [kind,definition] of definitions){cards.push(actionCard({action:`build:${kind}`,kind,label:buildingName(kind),cost:definition.cost,age:definition.age,disabled:summary.age<definition.age||!enough(definition.cost),active:placement?.kind===kind,iconName:currentTab==='military'?'sword':currentTab==='defense'?'shield':currentTab==='knowledge'?'book':'home',extra:t(workers.length?'app.catalog.build':'app.catalog.needsVillagers')}));}
   const markup=cards.join('');
   if(markup!==catalogMarkup){$('#action-catalog').innerHTML=markup;catalogMarkup=markup;}
   document.querySelectorAll('[data-action="tab"]').forEach(button=>button.classList.toggle('active',button.dataset.tab===currentTab));
 }
 
+const HELP_CONTROLS = ['leftClick','drag','doubleClick','rightClick','formations','rally','wheel','camera','hotkeys','idle','groups','space','voice','save','escape'];
+const PANEL_TITLES = ['help','roster','market','research','save','load','new','rename'];
+let renameUnitId = null;
 function openPanel(name){
   if(name==='voice'){window.guildVoice?.toggle();return;}
   currentPanel=name;panelSignature='';$('#modal-backdrop').hidden=false;$('#panel-drawer').hidden=false;
-  const titles={help:'El arte de guiar',roster:'Los nombres de tu ciudad',market:'El mercado del gremio',research:'Conocimiento y eras',save:'Guardar la crónica',load:'Retomar una historia',new:'Un nuevo comienzo',rename:'Un nombre, una historia'};
-  $('#panel-title').textContent=titles[name]||name;
-  const content=$('#panel-content');
-  if(name==='help')content.innerHTML=`<p class="panel-lead">Construye un hogar. Cuida a sus habitantes. Deja un legado.</p><p>Los aldeanos recogen y transportan recursos hasta un almacén. Construye casas para ampliar la capacidad, recluta unidades y lleva a tu gremio a través de cuatro eras.</p><h3>Las manos del estratega</h3>${[
-    ['Clic izquierdo','Seleccionar una unidad, un edificio o un recurso.'],['Arrastrar','Seleccionar varios habitantes; Mayús añade a la selección.'],['Doble clic','Seleccionar unidades del mismo tipo en la vista.'],['Clic derecho','Mover, recolectar, reparar o atacar según el destino.'],['Formaciones','Línea, caja o escalonada: reagrupan la selección y se conservan al moverla.'],['Punto de reunión','Selecciona un productor y haz clic derecho en un recurso; los trabajadores nuevos comienzan a recolectar.'],['Rueda','Acercar o alejar el mundo alrededor del cursor.'],['Flechas / Alt + WASD','Desplazar la cámara. Arrastrar con botón central también funciona.'],['B / A / S / D','Construir, avance ofensivo, detener y defender.'],['. (punto)','Seleccionar un aldeano sin tarea.'],['Ctrl + 1…9','Guardar un grupo de control. 1…9 lo selecciona.'],['Espacio','Pausar o continuar la partida.'],['V','Abrir la voz del gremio.'],['Ctrl + S','Guardar la partida en este navegador y descargar el archivo.'],['Esc','Cancelar una orden, la voz o cerrar un panel.']
-  ].map(([key,text])=>`<div class="help-row"><kbd>${key}</kbd><span>${text}</span></div>`).join('')}<h3>De la semilla al reino</h3><p>Selecciona aldeanos y un edificio de la barra inferior. Haz clic en un terreno libre para construir; para murallas y empalizadas, arrastra una línea. Con aldeanos seleccionados, el clic derecho sobre un edificio dañado repara sus heridas.</p><p>Selecciona la Casa del Gremio para reclutar aldeanos y avanzar de era. Los edificios militares reclutan sus propias unidades; la forja y las academias investigan. En el mercado puedes convertir el excedente en nuevos recursos.</p><h3>La voz de tu gremio</h3><p>Prueba “selecciona mis aldeanos”, “recoge madera”, “forma en línea” o “mueve los arqueros en caja a mi base”. Las órdenes se ejecutan al momento; “Alto” detiene las unidades. No hace falta confirmar ni dar coordenadas. El estado de micrófono, voz y WebMCP se muestra por separado en su panel.</p>`;
+  $('#panel-title').textContent=PANEL_TITLES.includes(name)?t(`app.panel.title.${name}`):name;
+  const content=$('#panel-content');content.scrollTop=0;
+  if(name==='help')content.innerHTML=`<p class="panel-lead">${t('app.help.lead')}</p><p>${t('app.help.intro')}</p><h3>${t('app.help.controls.title')}</h3>${HELP_CONTROLS.map(id=>[t(`app.help.controls.${id}.key`),t(`app.help.controls.${id}.text`)]).map(([key,text])=>`<div class="help-row"><kbd>${key}</kbd><span>${text}</span></div>`).join('')}<h3>${t('app.help.build.title')}</h3><p>${t('app.help.build.p1')}</p><p>${t('app.help.build.p2')}</p><h3>${t('app.help.voice.title')}</h3><p>${t('app.help.voice.text')}</p>`;
   if(name==='roster'){
-    content.innerHTML=`<p>Una ciudad está hecha de historias. Encuentra a un habitante, vuelve a él o dale un nombre propio.</p><input class="roster-search" id="roster-search" placeholder="Buscar por nombre o profesión…" aria-label="Buscar habitantes" data-action="roster-search"><div id="roster-summary" class="roster-summary"></div><div id="roster-list"></div>`;
+    content.innerHTML=`<p>${escapeHTML(t('app.roster.intro'))}</p><input class="roster-search" id="roster-search" placeholder="${escapeHTML(t('app.roster.searchPlaceholder'))}" aria-label="${escapeHTML(t('app.roster.searchLabel'))}" data-action="roster-search"><div id="roster-summary" class="roster-summary"></div><div id="roster-list"></div>`;
     $('#roster-search').addEventListener('input',()=>{panelSignature='';updateRoster();});updateRoster();
   }
   if(name==='market'){
-    content.innerHTML=`<p>El oro recorre los caminos del gremio. Compra recursos que escasean o vende lo que tus almacenes guardan.</p><label for="trade-amount">CANTIDAD POR INTERCAMBIO</label><select id="trade-amount" data-action="trade-amount"><option value="100">100 unidades</option><option value="50">50 unidades</option><option value="10">10 unidades</option></select><h3>Mercancías</h3><div class="trade-grid">${['wood','food','stone'].map(resource=>`<article class="trade-card">${icon(resource)}<h4>${names[resource]}</h4><small>El precio se valida al comerciar</small><div><button data-action="trade" data-resource="${resource}" data-direction="buy">Comprar</button><button data-action="trade" data-resource="${resource}" data-direction="sell">Vender</button></div></article>`).join('')}</div><p>Necesitas un mercado terminado de tu ciudad.</p>`;
+    content.innerHTML=`<p>${escapeHTML(t('app.market.intro'))}</p><label for="trade-amount">${escapeHTML(t('app.market.amountLabel'))}</label><select id="trade-amount" data-action="trade-amount">${[100,50,10].map(amount=>`<option value="${amount}">${escapeHTML(t('app.market.amountOption',{amount}))}</option>`).join('')}</select><h3>${escapeHTML(t('app.market.goods'))}</h3><div class="trade-grid">${['wood','food','stone'].map(resource=>`<article class="trade-card">${icon(resource)}<h4>${escapeHTML(resourceName(resource))}</h4><small>${escapeHTML(t('app.market.priceNote'))}</small><div><button data-action="trade" data-resource="${resource}" data-direction="buy">${escapeHTML(t('app.market.buy'))}</button><button data-action="trade" data-resource="${resource}" data-direction="sell">${escapeHTML(t('app.market.sell'))}</button></div></article>`).join('')}</div><p>${escapeHTML(t('app.market.requirement'))}</p>`;
   }
   if(name==='research'){
     const age=world?.summary(1).age||1,team=world?.state.teams[1];
-    content.innerHTML=`<p>El conocimiento abre caminos que la fuerza no alcanza. Cada descubrimiento necesita su edificio y su era.</p>${Object.entries(TECHNOLOGIES).map(([id,def])=>{
+    content.innerHTML=`<p>${escapeHTML(t('app.research.intro'))}</p>${Object.entries(TECHNOLOGIES).map(([id,def])=>{
       const producer=world?.state.buildings.find(b=>b.kind===def.producer&&b.team===1&&b.progress>=1),done=team?.upgrades?.[id];
-      return `<article class="technology-row"><h4>${escapeHTML(def.name)}</h4><p>${escapeHTML(BUILDINGS[def.producer]?.name)} · Era ${def.age}${def.prerequisites.length?` · Requiere ${def.prerequisites.map(p=>TECHNOLOGIES[p].name).join(', ')}`:''}</p><footer><span>${done?'Conocimiento adquirido':costText(def.cost)}</span><button data-action="research:${id}" data-technology-id="${id}" data-building-id="${producer?.id||''}" ${!producer||done||age<def.age?'disabled':''}>${done?'Investigado':'Investigar'}</button></footer></article>`;
+      const details=[BUILDINGS[def.producer]?buildingName(def.producer):def.producer,t('app.common.ageNumber',{age:def.age})];
+      if(def.prerequisites.length)details.push(t('app.research.requires',{list:def.prerequisites.map(p=>techName(p)).join(t('app.common.listSeparator'))}));
+      return `<article class="technology-row"><h4>${escapeHTML(techName(id))}</h4><p>${escapeHTML(details.join(' · '))}</p><footer><span>${escapeHTML(done?t('app.research.acquired'):costText(def.cost))}</span><button data-action="research:${id}" data-technology-id="${id}" data-building-id="${producer?.id||''}" ${!producer||done||age<def.age?'disabled':''}>${escapeHTML(t(done?'app.common.researched':'app.common.research'))}</button></footer></article>`;
     }).join('')}`;
   }
   if(name==='save'){
-    content.innerHTML=`<p class="panel-lead">Cada historia merece conservarse.</p><p>Tu partida se guarda en este navegador y se descarga como archivo JSON. El archivo conserva habitantes, recursos, construcciones y órdenes en curso.</p><button class="primary-button" data-action="save-now">${icon('save')}Guardar y descargar</button><p class="saved-notice">Las partidas viven en tu equipo.</p>`;
+    content.innerHTML=`<p class="panel-lead">${escapeHTML(t('app.save.lead'))}</p><p>${escapeHTML(t('app.save.text'))}</p><button class="primary-button" data-action="save-now">${icon('save')}${escapeHTML(t('app.save.button'))}</button><p class="saved-notice">${escapeHTML(t('app.save.notice'))}</p>`;
   }
   if(name==='load'){
     let saved=null;try{saved=JSON.parse(localStorage.getItem('gremios-save'));}catch{saved=null;}
-    content.innerHTML=`<p class="panel-lead">Un mundo te está esperando.</p><p>Abre una crónica de tu equipo o continúa la última guardada en este navegador.</p>${saved?`<article class="technology-row"><h4>${escapeHTML(MAPS.find(m=>m.id===saved.mapId)?.name||saved.mapId||'Última crónica')}</h4><p>Archivo local de este navegador</p><button class="primary-button" data-action="load-local">Continuar crónica</button></article>`:''}<button class="primary-button" data-action="load-file">${icon('load')}Elegir archivo de partida</button><p>Los archivos se validan antes de reemplazar tu mundo.</p>`;
+    const savedName=saved?(MAPS.some(m=>m.id===saved.mapId)?mapText(saved.mapId,'name'):saved.mapId||t('app.load.lastChronicle')):'';
+    content.innerHTML=`<p class="panel-lead">${escapeHTML(t('app.load.lead'))}</p><p>${escapeHTML(t('app.load.text'))}</p>${saved?`<article class="technology-row"><h4>${escapeHTML(savedName)}</h4><p>${escapeHTML(t('app.load.localFile'))}</p><button class="primary-button" data-action="load-local">${escapeHTML(t('app.load.continue'))}</button></article>`:''}<button class="primary-button" data-action="load-file">${icon('load')}${escapeHTML(t('app.load.chooseFile'))}</button><p>${escapeHTML(t('app.load.validation'))}</p>`;
   }
-  if(name==='new')content.innerHTML=`<p class="panel-lead">Una tierra nueva aguarda al otro lado del camino.</p><p>Guarda esta crónica si deseas volver. Podrás elegir otro gremio, región y desafío.</p><button class="primary-button" data-action="save-now">${icon('save')}Guardar la crónica actual</button><button class="primary-button" data-action="return-menu">Elegir una nueva historia${icon('arrow')}</button>`;
+  if(name==='new')content.innerHTML=`<p class="panel-lead">${escapeHTML(t('app.new.lead'))}</p><p>${escapeHTML(t('app.new.text'))}</p><button class="primary-button" data-action="save-now">${icon('save')}${escapeHTML(t('app.new.saveCurrent'))}</button><button class="primary-button" data-action="return-menu">${escapeHTML(t('app.new.chooseStory'))}${icon('arrow')}</button>`;
   $('#panel-drawer .icon-button').focus({preventScroll:true});
 }
-function closePanel(){currentPanel=null;$('#panel-drawer').hidden=true;$('#modal-backdrop').hidden=true;}
+function closePanel(){currentPanel=null;renameUnitId=null;$('#panel-drawer').hidden=true;$('#modal-backdrop').hidden=true;}
+const searchFold = text => lower(text).normalize('NFD').replace(/\p{Diacritic}/gu,'');
 function updateRoster(){
   if(!world||!$('#roster-list'))return;
-  const query=($('#roster-search').value||'').toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'');
-  const units=world.state.units.filter(u=>u.team===1&&u.hp>0),signature=JSON.stringify([query,units.map(u=>[u.id,u.name,Math.round(u.hp),u.order?.type,u.order?.phase,u.order?.waiting])]);
+  const query=searchFold($('#roster-search').value||'');
+  const units=world.state.units.filter(u=>u.team===1&&u.hp>0),signature=JSON.stringify([getLocale(),query,units.map(u=>[u.id,u.name,Math.round(u.hp),u.order?.type,u.order?.phase,u.order?.waiting])]);
   if(signature===panelSignature)return;panelSignature=signature;
-  const summary=world.summary(1);$('#roster-summary').innerHTML=`<span><b>${summary.population}</b> habitantes</span><span><b>${summary.villagers}</b> aldeanos</span><span><b>${summary.military}</b> militares</span>`;
-  const filtered=units.filter(u=>`${u.name} ${UNITS[u.kind]?.name}`.toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'').includes(query));
-  $('#roster-list').innerHTML=filtered.slice(0,200).map(u=>`<div class="roster-row"><i class="unit-dot"></i><button data-action="select-entity" data-unit-id="${u.id}">${escapeHTML(u.name)}<small>${escapeHTML(UNITS[u.kind]?.name)} · ${orderStatus(u)}</small></button><span class="roster-hp">${Math.round(u.hp)} PV</span><button class="text-button" data-action="rename" data-unit-id="${u.id}">Renombrar</button></div>`).join('')+(filtered.length>200?'<p>Refina la búsqueda para encontrar otros habitantes.</p>':'');
+  const summary=world.summary(1),bold=value=>`<b>${escapeHTML(number(value))}</b>`;
+  $('#roster-summary').innerHTML=['population','villagers','military'].map(field=>{const count=Number(summary[field])||0;return `<span>${t(`app.roster.summary.${field}.${count===1?'one':'other'}`,{count:bold(count)})}</span>`;}).join('');
+  // Spanish kind names stay searchable in every language (they are also the voice vocabulary).
+  const filtered=units.filter(u=>searchFold(`${u.name} ${UNITS[u.kind]?.name} ${unitName(u.kind)}`).includes(query));
+  $('#roster-list').innerHTML=filtered.slice(0,200).map(u=>`<div class="roster-row"><i class="unit-dot"></i><button data-action="select-entity" data-unit-id="${u.id}">${escapeHTML(entityName(u))}<small>${escapeHTML(unitName(u.kind))} · ${escapeHTML(orderStatus(u))}</small></button><span class="roster-hp">${escapeHTML(t('app.common.hp',{hp:Math.round(u.hp)}))}</span><button class="text-button" data-action="rename" data-unit-id="${u.id}">${escapeHTML(t('app.roster.rename'))}</button></div>`).join('')+(filtered.length>200?`<p>${escapeHTML(t('app.roster.refine'))}</p>`:'');
 }
 function renamePanel(unitId){
   const entity=world?.getEntity(unitId);if(!entity||entity.team!==1||!UNITS[entity.kind])return;
-  openPanel('rename');$('#panel-content').innerHTML=`<p>Los nombres acompañan a tus habitantes en el mundo y en tus órdenes de voz.</p><form id="rename-form"><label for="rename-input">NOMBRE DE ${escapeHTML(UNITS[entity.kind].name.toUpperCase())}</label><input id="rename-input" maxlength="40" required value="${escapeHTML(entity.name)}" data-unit-id="${unitId}" autocomplete="off"><div id="rename-error" class="form-error" role="status"></div><button class="primary-button" type="submit" data-action="rename-submit">Guardar nombre${icon('arrow')}</button></form>`;
-  $('#rename-form').addEventListener('submit',event=>{event.preventDefault();const result=execute('rename',{unitId,name:$('#rename-input').value});if(result.ok)closePanel();else $('#rename-error').textContent=result.message;});
+  openPanel('rename');renameUnitId=unitId;$('#panel-content').innerHTML=`<p>${escapeHTML(t('app.rename.intro'))}</p><form id="rename-form"><label for="rename-input">${escapeHTML(t('app.rename.label',{kind:upper(unitName(entity.kind))}))}</label><input id="rename-input" maxlength="40" required value="${escapeHTML(entity.name)}" data-unit-id="${unitId}" autocomplete="off"><div id="rename-error" class="form-error" role="status"></div><button class="primary-button" type="submit" data-action="rename-submit">${escapeHTML(t('app.rename.submit'))}${icon('arrow')}</button></form>`;
+  $('#rename-form').addEventListener('submit',event=>{event.preventDefault();const result=execute('rename',{unitId,name:$('#rename-input').value});if(result.ok)closePanel();else $('#rename-error').textContent=localize(result);});
   $('#rename-input').focus();$('#rename-input').select();
+}
+/** Re-renders the open drawer in the new language, keeping what the player typed or chose. */
+function refreshOpenPanel(){
+  if(!currentPanel)return;
+  if(currentPanel==='rename'){
+    const id=renameUnitId,value=$('#rename-input')?.value;
+    if(!world?.getEntity(id)){closePanel();return;}
+    renamePanel(id);if(value!==undefined)$('#rename-input').value=value;return;
+  }
+  const query=$('#roster-search')?.value,amount=$('#trade-amount')?.value;
+  openPanel(currentPanel);
+  if(query!==undefined&&$('#roster-search')){$('#roster-search').value=query;panelSignature='';updateRoster();}
+  if(amount!==undefined&&$('#trade-amount'))$('#trade-amount').value=amount;
 }
 
 function save(){
-  if(!world)return {ok:false,message:'No hay una partida que guardar.'};
+  if(!world)return appResult(false,'app.save.none');
   const snapshot=world.serialize();const json=JSON.stringify(snapshot);
-  try{localStorage.setItem('gremios-save',json);}catch{announce('El navegador no pudo conservar una copia local; el archivo sí se descargará.',true);}
+  try{localStorage.setItem('gremios-save',json);}catch{announce(t('app.save.localFailed'),true);}
   const url=URL.createObjectURL(new Blob([json],{type:'application/json'})),anchor=document.createElement('a');anchor.href=url;anchor.download=`gremios-${world.state.mapId}-${new Date().toISOString().slice(0,10)}.json`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
-  announce('Crónica guardada. Tu mundo te esperará.');return {ok:true,message:'Partida guardada.'};
+  announce(t('app.save.done'));return appResult(true,'app.save.result');
 }
 function load(serialized){
-  if(serialized===undefined){openPanel('load');return {ok:true,message:'Elige una partida guardada.'};}
-  try{const next=World.fromSave(typeof serialized==='string'?JSON.parse(serialized):serialized);installWorld(next);announce('La crónica continúa.');return {ok:true,worldGeneration};}
-  catch(error){const message=`No se pudo cargar la partida: ${error.message}`;announce(message,true);return {ok:false,message};}
+  if(serialized===undefined){openPanel('load');return appResult(true,'app.load.choose');}
+  try{const next=World.fromSave(typeof serialized==='string'?JSON.parse(serialized):serialized);installWorld(next);announce(t('app.load.resumed'));return {ok:true,worldGeneration};}
+  catch(error){const result=appResult(false,'app.load.failed',{error:error?.i18n?localize(error):error?.message},{error:error?.message});announce(localize(result),true);return {ok:false,message:result.message,i18n:result.i18n};}
 }
 $('#load-file').addEventListener('change',async event=>{
   const input=event.currentTarget,file=input.files?.[0];if(!file)return;
-  if(file.size>25_000_000){announce('Este archivo de partida es demasiado grande.',true);input.value='';return;}
-  const generation=worldGeneration;try{const text=await file.text();if(generation!==worldGeneration){announce('La carga se canceló porque cambió la partida.',true);return;}load(text);}catch{announce('No se pudo leer el archivo.',true);}finally{input.value='';}
+  if(file.size>25_000_000){announce(t('app.load.tooLarge'),true);input.value='';return;}
+  const generation=worldGeneration;try{const text=await file.text();if(generation!==worldGeneration){announce(t('app.load.cancelled'),true);return;}load(text);}catch{announce(t('app.load.unreadable'),true);}finally{input.value='';}
 });
 function showWinner(){
-  winnerShown=true;const won=world.state.winner===1||world.state.winner==='player';
-  $('#winner-title').textContent=won?'El alba es tuya.':'Hasta la próxima aurora.';
-  $('#winner-description').textContent=won?'Tu gremio ha unido estas tierras bajo una nueva historia. Los habitantes recordarán este día.':'Tu ciudad cayó, pero el legado de sus habitantes vive. Otra tierra espera una nueva oportunidad.';
+  winnerShown=true;updateWinnerText();
   $('#winner-dialog').showModal();
+}
+function updateWinnerText(){
+  if(!world||!winnerShown)return;
+  const outcome=world.state.winner===1||world.state.winner==='player'?'won':'lost';
+  $('#winner-title').textContent=t(`app.winner.${outcome}.title`);
+  $('#winner-description').textContent=t(`app.winner.${outcome}.description`);
 }
 function returnMenu(){
   closePanel();$('#winner-dialog').close();menuVisible=true;heldKeys.clear();cancelTargeting();$('#game-screen').hidden=true;$('#start-screen').hidden=false;drawMenuLandscape($('#menu-landscape'));
@@ -358,14 +427,14 @@ function handleAction(button,event){
   if(action.startsWith('research:')){execute('research',{buildingId:button.dataset.buildingId,technologyId:action.slice(9)});if(currentPanel==='research')openPanel('research');return;}
   switch(action){
     case 'help':openPanel('help');break;
-    case 'roster':if(world)openPanel('roster');else announce('Comienza una partida para conocer a sus habitantes.');break;
+    case 'roster':if(world)openPanel('roster');else announce(t('app.announce.rosterNeedsMatch'));break;
     case 'market':openPanel('market');break;
     case 'research':openPanel('research');break;
     case 'save':openPanel('save');break;
     case 'save-now':save();break;
     case 'load':openPanel('load');break;
     case 'load-file':$('#load-file').click();break;
-    case 'load-local':try{load(JSON.parse(localStorage.getItem('gremios-save')));}catch{announce('La copia local no es válida.',true);}break;
+    case 'load-local':try{load(JSON.parse(localStorage.getItem('gremios-save')));}catch{announce(t('app.load.invalidLocal'),true);}break;
     case 'new-match':openPanel('new');break;
     case 'return-menu':returnMenu();break;
     case 'continue-world':$('#winner-dialog').close();break;
@@ -377,14 +446,14 @@ function handleAction(button,event){
     case 'stop':execute('stop',{unitIds:ownUnits().map(e=>e.id)});cancelTargeting();break;
     case 'defend':execute('defend',{unitIds:ownUnits().map(e=>e.id)});cancelTargeting();break;
     case 'formation':chooseFormation(button.dataset.formation);cancelTargeting();break;
-    case 'attack-move':if(ownUnits().length){cancelTargeting();attackMove=true;refreshPlacementHint();$('#world-canvas').style.cursor='crosshair';}else announce('Selecciona unidades para dar esta orden.',true);break;
+    case 'attack-move':if(ownUnits().length){cancelTargeting();attackMove=true;refreshPlacementHint();$('#world-canvas').style.cursor='crosshair';}else announce(t('app.announce.selectUnits'),true);break;
     case 'select-idle':selectIdle(event.shiftKey);break;
     case 'select-entity':focusEntity(button.dataset.unitId);break;
     case 'rename':renamePanel(button.dataset.unitId||selectedIds[0]);break;
     case 'cancel-train':{
       const buildingId=button.dataset.buildingId,queueIndex=Number(button.dataset.queueIndex),entry=displayedQueueEntries.get(button.dataset.queueKey);
       if(entry&&world.getEntity(buildingId)?.queue[queueIndex]===entry)execute('cancel_train',{buildingId,queueIndex});
-      else{announce('Esa orden ya terminó o cambió de posición.');invalidateHUD();refreshHUD();}
+      else{announce(t('app.announce.queueChanged'));invalidateHUD();refreshHUD();}
       break;
     }
     case 'advance-age':execute('advance_age',{buildingId:button.dataset.buildingId});break;
@@ -407,7 +476,7 @@ $('#modal-backdrop').addEventListener('click',closePanel);
 function selectIdle(all=false){
   if(!world)return;
   const units=world.state.units.filter(u=>u.team===1&&u.kind==='villager'&&(!u.order||['idle','stop'].includes(u.order.type)));
-  if(!units.length){announce('Todos tus aldeanos tienen una tarea.');return;}
+  if(!units.length){announce(t('app.announce.allBusy'));return;}
   const unit=units.find(u=>!selectedIds.includes(u.id))||units[0];select(all?units.map(u=>u.id):[unit.id]);renderer.centerOn(unit.x,unit.y);
 }
 function contextOrder(clientX,clientY){
@@ -447,7 +516,7 @@ function bindWorldInputs(){
       pointer.lastX=event.clientX;pointer.lastY=event.clientY;
     }
     if(placement){if(!pointer||!['wall','palisade'].includes(placement.kind)){placement.x=Math.floor(p.x+.5);placement.y=Math.floor(p.y+.5);}placement.visible=true;placement.valid=validPlacement();}
-    else if(!pointer){hovered=renderer.pick(event.clientX,event.clientY);const tooltip=$('#world-tooltip');tooltip.hidden=!hovered;if(hovered){tooltip.style.left=`${Math.min(rect.width-190,event.clientX-rect.left+16)}px`;tooltip.style.top=`${Math.min(rect.height-60,event.clientY-rect.top+14)}px`;const def=UNITS[hovered.kind]||BUILDINGS[hovered.kind];tooltip.innerHTML=`${escapeHTML(hovered.name||def?.name||names[hovered.kind]||hovered.kind)}<small>${def?`${hovered.team===1?'Tu gremio':'Gremio rival'} · ${number(hovered.hp)} PV`:`${number(hovered.amount)} disponibles`}</small>`;}}
+    else if(!pointer){hovered=renderer.pick(event.clientX,event.clientY);const tooltip=$('#world-tooltip');tooltip.hidden=!hovered;if(hovered){tooltip.style.left=`${Math.min(rect.width-190,event.clientX-rect.left+16)}px`;tooltip.style.top=`${Math.min(rect.height-60,event.clientY-rect.top+14)}px`;const def=UNITS[hovered.kind]||BUILDINGS[hovered.kind];tooltip.innerHTML=`${escapeHTML(def?entityName(hovered):isResourceKind(hovered.kind)?resourceName(hovered.kind):hovered.name||hovered.kind)}<small>${escapeHTML(def?`${t(hovered.team===1?'app.tooltip.own':'app.tooltip.rival')} · ${t('app.common.hp',{hp:number(hovered.hp)})}`:t('app.common.available',{amount:number(hovered.amount)}))}</small>`;}}
   });
   canvas.addEventListener('pointerup',event=>{
     if(!pointer||pointer.id!==event.pointerId)return;const start=pointer;pointer=null;
@@ -456,7 +525,7 @@ function bindWorldInputs(){
     const p=renderer.screenToWorld(event.clientX,event.clientY),entity=renderer.pick(event.clientX,event.clientY);
     if(placement){const {kind,x,y}=placement;const result=['wall','palisade'].includes(kind)?execute('wall',{unitIds:selectedWorkers(),kind,x,y,endX:placement.endX??x,endY:placement.endY??y}):execute('build',{unitIds:selectedWorkers(),kind,x,y});if(result.ok&&!event.shiftKey)cancelTargeting();}
     else if(targetedSpell){execute('cast',{unitIds:ownUnits().filter(u=>UNITS[u.kind].spell===targetedSpell).map(u=>u.id),x:p.x,y:p.y,spell:targetedSpell});cancelTargeting();}
-    else if(convertTarget){if(entity)execute('convert',{unitIds:ownUnits().filter(u=>u.kind==='wizard').map(u=>u.id),targetId:entity.id});else announce('Elige una unidad rival para convertir.',true);cancelTargeting();}
+    else if(convertTarget){if(entity)execute('convert',{unitIds:ownUnits().filter(u=>u.kind==='wizard').map(u=>u.id),targetId:entity.id});else announce(t('app.announce.chooseConvertTarget'),true);cancelTargeting();}
     else if(attackMove){execute('move',{unitIds:ownUnits().map(u=>u.id),x:p.x,y:p.y,attackMove:true,formation:formationFor()});cancelTargeting();}
     else if(dragRect){
       const rect=canvas.getBoundingClientRect(),chosen=world.state.units.filter(u=>{if(u.team!==1||u.hp<=0)return false;const s=renderer.worldToScreen(u.x,u.y);return s.x-rect.left>=dragRect.x&&s.x-rect.left<=dragRect.x+dragRect.width&&s.y-rect.top>=dragRect.y&&s.y-rect.top<=dragRect.y+dragRect.height;}).map(u=>u.id);
@@ -483,7 +552,7 @@ function bindWorldInputs(){
     const key=event.key.toLowerCase();
     if((event.ctrlKey||event.metaKey)&&key==='s'){event.preventDefault();save();return;}
     if(/^\d$/.test(key)&&key!=='0'){
-      event.preventDefault();if(event.ctrlKey||event.metaKey){controlGroups.set(key,[...selectedIds]);announce(`Grupo ${key} guardado: ${selectedIds.length} habitantes.`);}else{select(controlGroups.get(key)||[]);if(event.repeat){const first=selectedEntities()[0];if(first)renderer.centerOn(first.x,first.y);}}return;
+      event.preventDefault();if(event.ctrlKey||event.metaKey){controlGroups.set(key,[...selectedIds]);announce(t(selectedIds.length===1?'app.announce.groupSaved.one':'app.announce.groupSaved.other',{group:key,count:selectedIds.length}));}else{select(controlGroups.get(key)||[]);if(event.repeat){const first=selectedEntities()[0];if(first)renderer.centerOn(first.x,first.y);}}return;
     }
     if(key===' '){event.preventDefault();if(!event.repeat){humanPauseGeneration++;execute('pause',{paused:!world.state.paused});}return;}
     if(key==='.'){selectIdle(event.shiftKey);return;}
@@ -522,8 +591,8 @@ const game = {
   view(action,args={}) {
     switch(action){
       case 'close-panel':closePanel();break;
-      case 'tab':if(!['economy','military','defense','knowledge'].includes(args.tab))return {ok:false,message:'Categoría desconocida.'};currentTab=args.tab;catalogSignature='';refreshHUD();break;
-      case 'assign-group':if(!/^[1-9]$/.test(String(args.group)))return {ok:false,message:'Grupo no válido.'};controlGroups.set(String(args.group),[...selectedIds]);break;
+      case 'tab':if(!['economy','military','defense','knowledge'].includes(args.tab))return appResult(false,'app.error.unknownTab');currentTab=args.tab;catalogSignature='';refreshHUD();break;
+      case 'assign-group':if(!/^[1-9]$/.test(String(args.group)))return appResult(false,'app.error.invalidGroup');controlGroups.set(String(args.group),[...selectedIds]);break;
       case 'recall-group':select(controlGroups.get(String(args.group))||[]);break;
       case 'roster-search':if(currentPanel!=='roster')openPanel('roster');$('#roster-search').value=String(args.query||'');panelSignature='';updateRoster();break;
       case 'return-menu':returnMenu();break;
@@ -531,15 +600,31 @@ const game = {
       case 'zoom-in':renderer?.zoomAt(1.15);break;
       case 'zoom-out':renderer?.zoomAt(1/1.15);break;
       case 'center-selection':{const entity=selectedEntities()[0];if(entity)renderer.centerOn(entity.x,entity.y);break;}
-      default:return {ok:false,message:'Acción de vista desconocida.'};
+      default:return appResult(false,'app.error.unknownViewAction');
     }
     return {ok:true};
   },
   getState(){return world?{...world.summary(1),mapId:world.state.mapId,guildId:world.state.guildId,mode:world.state.mode,difficulty:world.state.difficulty,time:world.state.time,paused:world.state.paused,speed:world.state.speed,selectedIds:[...selectedIds],worldGeneration,winner:world.state.winner}:{worldGeneration,started:false};},
 };
 window.game=game;
+installAudio(game);
+mountLanguageSelects();applyDocumentLocale();
+// Live language switch: re-label the menu in place and redraw every piece of text the HUD caches.
+onLocaleChange(()=>{
+  localizeMenu();
+  // Notices hold finished text in the previous language: drop them rather than leave them stale.
+  $('#announcements')?.replaceChildren();
+  const status=$('#screen-reader-status');if(status)status.textContent='';
+  if(!world)return;
+  updateWorldCaption();
+  invalidateHUD();catalogMarkup=null;
+  if(!menuVisible){refreshHUD();refreshPlacementHint();}
+  refreshOpenPanel();
+  if(winnerShown)updateWinnerText();
+});
 buildMenu();bindWorldInputs();
-import('./voice/index.js').then(({initializeVoice})=>initializeVoice(game)).catch(error=>announce(`La voz aún no está disponible: ${error.message}`,true));
+import('./voice/index.js').then(({initializeVoice})=>initializeVoice(game)).catch(error=>announce(t('app.error.voiceUnavailable',{error:error.message}),true));
 if(new URLSearchParams(location.search).get('play')==='1')newMatch({});
 requestAnimationFrame(frame);
-window.addEventListener('resize',()=>{if(menuVisible)drawMenuLandscape($('#menu-landscape'));});
+window.addEventListener('resize',()=>{if(menuVisible)drawMenuLandscape($('#menu-landscape'));updateCatalogCue();});
+$('#action-catalog')?.addEventListener('scroll',updateCatalogCue,{passive:true});
