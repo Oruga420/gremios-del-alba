@@ -33,6 +33,7 @@
     <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 3 14 9-14 9Z"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M3 12h18m-7-7 7 7-7 7"/></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path d="m1 11 11-9 11 9M4 9v13h16V9M9 22v-8h6v8"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c3 3 4 6.5 4 10s-1 7-4 10c-3-3-4-6.5-4-10s1-7 4-10Z"/></symbol>
     <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="6" rx="7" ry="3"/><path d="M2 6v5c0 4 14 4 14 0V6M2 11v5c0 4 14 4 14 0v-5M18 10c6 0 6 5 0 5m-2 5c6 0 7-3 6-8"/></symbol>
   </svg>
 
@@ -53,7 +54,7 @@
     </section>
 
     <section class="chronicle-panel">
-      <header class="setup-header"><span class="eyebrow">TU PRÓXIMA CRÓNICA</span><button class="text-button" data-action="help"><svg><use href="#i-book"/></svg>Cómo jugar</button></header>
+      <header class="setup-header"><span class="eyebrow">TU PRÓXIMA CRÓNICA</span><label class="language-picker" title="Idioma"><svg aria-hidden="true"><use href="#i-globe"/></svg><select data-language-select aria-label="Idioma / Language"></select></label><button class="text-button" data-action="help"><svg><use href="#i-book"/></svg>Cómo jugar</button></header>
       <div class="setup-title"><h2>Un nuevo comienzo</h2><p>Elige tu gremio y encuentra un lugar al que llamar hogar.</p></div>
       <form id="match-form">
         <fieldset><legend><span class="section-number">01</span> Elige tu gremio <span class="field-note">Cada origen deja su huella</span></legend><div id="guild-options" class="guild-options"></div></fieldset>
@@ -73,7 +74,7 @@
       <button class="game-brand" data-action="new-match" title="Nueva partida"><svg><use href="#i-star"/></svg><span>Gremios <em>del Alba</em></span></button>
       <div id="resources" class="resources" aria-label="Recursos de tu ciudad"></div>
       <div id="population" class="population" title="Habitantes / capacidad. Máximo 1.000 por ciudad."><svg><use href="#i-people"/></svg><strong>0 / 0</strong><small>HABITANTES</small></div>
-      <div class="top-actions"><button class="icon-button" data-action="save" title="Guardar partida (Ctrl+S)" aria-label="Guardar partida"><svg><use href="#i-save"/></svg></button><button class="icon-button" data-action="load" title="Cargar partida" aria-label="Cargar partida"><svg><use href="#i-load"/></svg></button><button class="icon-button" data-action="help" title="Ayuda y controles" aria-label="Ayuda"><svg><use href="#i-book"/></svg></button></div>
+      <div class="top-actions"><label class="language-picker compact" title="Idioma"><svg aria-hidden="true"><use href="#i-globe"/></svg><select data-language-select aria-label="Idioma / Language"></select></label><button class="icon-button" data-action="save" title="Guardar partida (Ctrl+S)" aria-label="Guardar partida"><svg><use href="#i-save"/></svg></button><button class="icon-button" data-action="load" title="Cargar partida" aria-label="Cargar partida"><svg><use href="#i-load"/></svg></button><button class="icon-button" data-action="help" title="Ayuda y controles" aria-label="Ayuda"><svg><use href="#i-book"/></svg></button></div>
     </header>
     <section id="world-stage" class="world-stage" aria-label="Mapa de juego">
       <canvas id="world-canvas" tabindex="0" aria-label="Mundo isométrico. Arrastra para seleccionar; clic derecho para dar órdenes."></canvas>

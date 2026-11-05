@@ -2,6 +2,8 @@ import { World } from './game/world.js';
 import { MAPS, GUILDS, UNITS, BUILDINGS, TECHNOLOGIES, AGE_NAMES, AGE_COSTS } from './game/data.js';
 import { GameRenderer, drawMenuLandscape } from './game/renderer.js';
 import { createRenderGate } from './game/render-gate.js';
+import { t, getLocale, onLocaleChange, applyDocumentLocale, mountLanguageSelects, formatNumber, localize } from './i18n/index.js';
+import { unitName, buildingName, techName, ageName, resourceName, resourceShort, guildText, mapText, kindName, entityName } from './i18n/names.js';
 
 const $ = selector => document.querySelector(selector);
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[character]);
@@ -538,6 +540,7 @@ const game = {
   getState(){return world?{...world.summary(1),mapId:world.state.mapId,guildId:world.state.guildId,mode:world.state.mode,difficulty:world.state.difficulty,time:world.state.time,paused:world.state.paused,speed:world.state.speed,selectedIds:[...selectedIds],worldGeneration,winner:world.state.winner}:{worldGeneration,started:false};},
 };
 window.game=game;
+mountLanguageSelects();applyDocumentLocale();
 buildMenu();bindWorldInputs();
 import('./voice/index.js').then(({initializeVoice})=>initializeVoice(game)).catch(error=>announce(`La voz aún no está disponible: ${error.message}`,true));
 if(new URLSearchParams(location.search).get('play')==='1')newMatch({});
